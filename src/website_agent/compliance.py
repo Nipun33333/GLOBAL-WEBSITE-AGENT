@@ -49,7 +49,9 @@ def eligible(session, prospect, settings, at, *, routine=False):
         or not readiness.get("base44_audience_exclusion_reference")
     ):
         reasons.append("history_and_base44_validation_required")
-    if not prospect.eligibility.get("base44_excluded") or not prospect.eligibility.get("audience_evidence"):
+    if prospect.eligibility.get("base44_excluded") is not True or not prospect.eligibility.get(
+        "audience_evidence"
+    ):
         reasons.append("audience_not_exclusively_assigned")
     row = session.scalar(select(CountryPolicy).where(CountryPolicy.country == prospect.country))
     policy = Policy.model_validate(row.policy if row else {})

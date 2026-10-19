@@ -13,6 +13,10 @@ class Blocked(RuntimeError):
     """An operation is unavailable or intentionally fail-closed."""
 
 
+class CapacityDeferred(Blocked):
+    """A configured capacity is exhausted; unfinished work remains durable."""
+
+
 def domain(url):
     host = urlsplit(url if "://" in url else "https://" + url).hostname or ""
     host = host.rstrip(".").encode("idna").decode("ascii").lower()

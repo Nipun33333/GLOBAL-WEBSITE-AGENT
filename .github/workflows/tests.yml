@@ -38,7 +38,7 @@ jobs:
       - run: uv run pytest --cov=website_agent --cov-report=term-missing --junitxml=artifacts/tests.xml
       - name: Audit locked dependencies
         run: |
-          uv export --frozen --no-emit-project --no-dev --format requirements-txt --output-file artifacts/requirements.txt
+          uv export --frozen --no-emit-project --no-dev --format requirements-txt --output-file artifacts/requirements.txt > /dev/null
           uv run pip-audit -r artifacts/requirements.txt --disable-pip --no-deps
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

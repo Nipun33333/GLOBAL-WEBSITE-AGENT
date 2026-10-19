@@ -9,15 +9,22 @@ from website_agent.ai import EmailCopy, ReplyClassification
 from website_agent.compliance import eligible
 from website_agent.copy import trusted_copy
 from website_agent.database import GmailThread, Message, Prospect, Site, assert_lock, aware, now, suppress
-from website_agent.gmail import headers, mime_message, text_body
+from website_agent.gmail import failed_recipients, headers, mime_message, text_body
 from website_agent.scheduler import business_due
-from website_agent.security import Blocked
+from website_agent.security import Blocked, CapacityDeferred
 
 STOP_PATTERNS = re.compile(
     r"unsubscribe|opt.?out|remove me|stop (email|contact|messag)|do not contact|don't contact|désabonn|abmelden|取消订阅|配信停止|सदस्यता समाप्त",
     re.I,
 )
 REJECT_PATTERNS = re.compile(r"not interested|no thanks|no thank you|nicht interessiert|pas intéress", re.I)
+
+
+def sender_fingerprint(settings):
+    value = "\n".join(
+        [settings.sender_name, settings.sender_email, settings.reply_to, settings.sender_postal_address]
+    )
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 def classify(text, ai):
@@ -106,6 +113,7 @@ def prepare(session, prospect, site, settings, ai, kind="initial", sequence=0):
         **message.details,
         "catalog_digest": message.details["copy_digest"],
         "catalog_version": 1,
+        "sender_fingerprint": sender_fingerprint(settings),
         "ai_copy_matched_catalog": suggestion == catalog_copy,
     }
     session.add(message)
@@ -125,6 +133,12 @@ def raw_message(settings, message):
 
 
 def create_draft(session, gmail, settings, message):
+    if message.state == "draft_pending":
+        existing = gmail.find_draft(message.rfc_message_id)
+        if existing:
+            message.draft_id, message.state = existing["id"], "drafted"
+            session.commit()
+        return message
     if message.state != "prepared":
         return message
     gmail.verify_sender()
@@ -169,6 +183,10 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
     if message.state != "drafted":
         return False
     prospect = session.get(Prospect, message.prospect_id)
+    if message.recipient != prospect.email:
+        raise Blocked("Draft recipient no longer matches verified prospect contact")
+    if message.details.get("sender_fingerprint") != sender_fingerprint(settings):
+        raise Blocked("Sender configuration changed since draft creation; regenerate the draft")
     allowed, reasons = eligible(session, prospect, settings, at, routine=message.kind == "acknowledgment")
     if not allowed:
         message.details = {**message.details, "blocked_reasons": reasons}
@@ -202,7 +220,7 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
         or (m.state in {"sending", "uncertain"} and datetime.fromisoformat(m.details["reserved_at"]) >= start)
     )
     if count >= daily_limit:
-        raise Blocked("Global daily email cap reached")
+        raise CapacityDeferred("Global daily email cap reached")
     gmail.verify_sender()
     own_ids = {
         m.gmail_id
@@ -234,7 +252,7 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
     session.commit()
     try:
         assert_lock(session)
-        result = gmail.send(raw_message(settings, message), message.thread_id)
+        result = gmail.send(raw_message(settings, message), message.thread_id, draft_id=message.draft_id)
         record_sent(session, message, result)
     except Exception:
         message.state = "uncertain"
@@ -282,7 +300,11 @@ def process_reply(session, prospect, message, ai):
     session.commit()
     body = text_body(message)
     sender = parseaddr(hdr.get("from", ""))[1].lower()
-    category = classify(hdr.get("subject", "") + "\n" + body, ai)
+    category = (
+        "Delivery Failure"
+        if prospect.email in failed_recipients(message)
+        else classify(hdr.get("subject", "") + "\n" + body, ai)
+    )
     if category in {"Unsubscribe", "Not Interested", "Delivery Failure"}:
         prospect.status = {
             "Unsubscribe": "unsubscribed",

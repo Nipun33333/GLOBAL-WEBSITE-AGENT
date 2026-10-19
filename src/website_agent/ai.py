@@ -1,6 +1,7 @@
 import hashlib
 import json
 import time
+from datetime import datetime, timedelta
 from typing import Literal
 
 from google import genai
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from website_agent.database import CostUsage, assert_lock, get_config, now, set_config
-from website_agent.security import Blocked
+from website_agent.security import Blocked, CapacityDeferred
 
 
 class Research(BaseModel):
@@ -99,6 +100,9 @@ class Gemini:
         cached = get_config(self.session, "ai:" + key)
         if cached:
             return schema.model_validate(cached)
+        pause = get_config(self.session, "gemini_quota_pause")
+        if pause.get("until") and now() < datetime.fromisoformat(pause["until"]):
+            raise Blocked("Gemini quota pause active until next UTC day")
         price = self.config.model_prices.get(model)
         if not price or min(price.get("input_per_million", -1), price.get("output_per_million", -1)) < 0:
             raise Blocked(
@@ -121,7 +125,7 @@ class Gemini:
                 len(usage) >= self.config.limits.ai_requests_daily
                 or spent + reserve > self.config.limits.ai_budget_usd
             ):
-                raise Blocked("Gemini daily request/cost budget exhausted")
+                raise CapacityDeferred("Gemini daily request/cost budget exhausted")
             row = CostUsage(
                 provider="gemini", operation=task[:80], key=f"{key}:{now().isoformat()}", reserved_usd=reserve
             )
@@ -158,6 +162,8 @@ class Gemini:
                 row.units = {"error_code": exc.code, "model": model}
                 self.session.commit()
                 if exc.code == 429:
+                    tomorrow = (now() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                    set_config(self.session, "gemini_quota_pause", {"until": tomorrow.isoformat()})
                     raise Blocked("Gemini quota exhausted; no quota bypass via fallback") from None
                 if exc.code not in {500, 502, 503, 504} or attempt == 2:
                     raise Blocked("Gemini request failed; see sanitized cost ledger") from None

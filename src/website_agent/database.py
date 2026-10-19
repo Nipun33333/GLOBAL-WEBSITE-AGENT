@@ -221,7 +221,7 @@ def assert_lock(session):
         held = session.scalar(
             text(
                 "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype='advisory' "
-                "AND pid=pg_backend_pid() AND granted AND classid=:hi AND objid=:lo)"
+                "AND pid=pg_backend_pid() AND granted AND CAST(classid AS bigint)=:hi AND CAST(objid AS bigint)=:lo)"
             ),
             {"hi": (LOCK_KEY & 0xFFFFFFFFFFFFFFFF) >> 32, "lo": LOCK_KEY & 0xFFFFFFFF},
         )

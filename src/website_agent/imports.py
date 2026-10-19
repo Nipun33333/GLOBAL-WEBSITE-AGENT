@@ -28,6 +28,7 @@ def import_history(session, path):
         if not address and not host:
             raise ValueError("Every history record requires email or domain")
         normalized.append((record, address, host))
+    set_config(session, "production_readiness", {"validated": False})
     for record, address, host in normalized:
         reason = "imported_opt_out" if record in data["opt_outs"] else "previous_contact"
         for key in [address, host]:
@@ -68,6 +69,7 @@ def import_history(session, path):
 
 def import_gmail_history(session, gmail):
     gmail.verify_sender()
+    set_config(session, "production_readiness", {"validated": False})
     count = 0
     own = set()
     from website_agent.database import Message
@@ -107,6 +109,8 @@ def validate_history(session, path):
         not imported.get("digest")
         or not gmail.get("completed")
         or any(not attestation.get(k) for k in required)
+        or attestation.get("suppression_export_complete") is not True
+        or attestation.get("history_export_complete") is not True
     ):
         raise Blocked("History validation needs completed imports and documented Base44 audience exclusion")
     if attestation.get("import_digest") != imported["digest"]:

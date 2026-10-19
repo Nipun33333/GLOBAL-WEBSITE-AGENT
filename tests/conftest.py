@@ -139,7 +139,7 @@ class FakeGmail:
         self.drafts += 1
         return {"id": "draft-1", "message": {"id": "draft-message-1"}}
 
-    def send(self, raw, thread_id=None):
+    def send(self, raw, thread_id=None, draft_id=None):
         self.sends += 1
         if self.raise_send:
             raise TimeoutError()

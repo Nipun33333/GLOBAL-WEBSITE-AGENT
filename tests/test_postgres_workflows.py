@@ -6,7 +6,7 @@ import yaml
 from sqlalchemy import inspect, text
 
 from website_agent.cli import migrate
-from website_agent.database import Base, engine_for, locked_session
+from website_agent.database import LOCK_KEY, Base, assert_lock, engine_for, locked_session
 
 
 @pytest.mark.postgres
@@ -21,11 +21,16 @@ def test_postgresql_migrations_and_cross_runner_lock():
     with locked_session(engine) as first:
         assert first.scalar(text("SELECT 1")) == 1
         first.commit()
+        assert_lock(first)
         with pytest.raises(RuntimeError, match="Another agent"):
             with locked_session(engine):
                 pass
     with locked_session(engine) as second:
         assert second.scalar(text("SELECT 1")) == 1
+        second.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": LOCK_KEY})
+        second.commit()
+        with pytest.raises(RuntimeError, match="ownership lost"):
+            assert_lock(second)
     engine.dispose()
 
 

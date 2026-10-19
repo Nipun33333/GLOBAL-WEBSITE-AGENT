@@ -1,4 +1,5 @@
 import base64
+import re
 from email.message import EmailMessage
 from email.utils import formataddr, getaddresses
 
@@ -41,6 +42,34 @@ def text_body(message):
         return "\n".join(walk(p) for p in part.get("parts", []))[:12000]
 
     return walk(message.get("payload", {})) or message.get("snippet", "")[:12000]
+
+
+def failed_recipients(message):
+    """Extract structured DSN recipients, not arbitrary addresses guessed from prose."""
+    result = []
+    hdr = headers(message)
+    candidates = [a for _, a in getaddresses([hdr.get("x-failed-recipients", "")]) if a]
+
+    def walk(part):
+        if part.get("mimeType") == "message/delivery-status":
+            raw = part.get("body", {}).get("data", "")
+            if raw:
+                value = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode(
+                    "utf-8", errors="replace"
+                )[:12000]
+                candidates.extend(
+                    re.findall(r"(?:Final|Original)-Recipient:\s*rfc822;\s*([^\s;]+)", value, re.I)
+                )
+        for child in part.get("parts", []):
+            walk(child)
+
+    walk(message.get("payload", {}))
+    for candidate in candidates:
+        try:
+            result.append(email_address(candidate))
+        except ValueError:
+            continue
+    return list(dict.fromkeys(result))
 
 
 class Gmail:
@@ -107,11 +136,17 @@ class Gmail:
             raise Blocked("Draft verification failed")
         return result
 
-    def send(self, raw, thread_id=None):
+    def send(self, raw, thread_id=None, draft_id=None):
         body = {"raw": raw}
         if thread_id:
             body["threadId"] = thread_id
-        result = self.post("messages/send", body)
+        # Sending the existing draft consumes it. Supply the checked MIME content atomically
+        # so mutable Gmail draft edits cannot change recipients or introduce unreviewed text.
+        result = (
+            self.post("drafts/send", {"id": draft_id, "message": body})
+            if draft_id
+            else self.post("messages/send", body)
+        )
         if not result.get("id"):
             raise Blocked("Gmail send response lacks ID")
         return self.verify_sent(result["id"])
@@ -128,6 +163,25 @@ class Gmail:
         if len(matches) > 1:
             raise Blocked("Duplicate Gmail Message-ID; manual reconciliation required")
         return self.verify_sent(matches[0]["id"]) if matches else None
+
+    def find_draft(self, rfc_message_id):
+        token = None
+        found = []
+        for _ in range(100):
+            params = {"q": "rfc822msgid:" + rfc_message_id.strip("<>"), "maxResults": 100}
+            if token:
+                params["pageToken"] = token
+            page = self.get("drafts", **params)
+            for entry in page.get("drafts", []):
+                draft = self.get("drafts/" + entry["id"], format="full")
+                if headers(draft["message"]).get("message-id") == rfc_message_id:
+                    found.append(draft)
+            token = page.get("nextPageToken")
+            if not token:
+                if len(found) > 1:
+                    raise Blocked("Duplicate draft identities; operator review required")
+                return found[0] if found else None
+        raise Blocked("Draft reconciliation pagination incomplete")
 
     def prior_contact(self, address, own_ids):
         query = "in:sent to:" + email_address(address)

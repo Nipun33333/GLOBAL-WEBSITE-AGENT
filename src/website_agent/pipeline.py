@@ -27,7 +27,7 @@ from website_agent.hosting import Netlify, verify_preview
 from website_agent.outreach import create_draft, followup_eligible, prepare, process_reply, send_controlled
 from website_agent.reporting import event
 from website_agent.scheduler import business_due, rotate
-from website_agent.security import Blocked, PublicWeb, domain
+from website_agent.security import Blocked, CapacityDeferred, PublicWeb, domain
 
 
 class Pipeline:
@@ -77,6 +77,15 @@ class Pipeline:
     def step(self, name, fn, prospect=None):
         try:
             return fn()
+        except CapacityDeferred as exc:
+            self.session.rollback()
+            self.log(
+                "capacity_deferred",
+                stage=name,
+                reason=str(exc),
+                prospect_id=prospect.id if prospect else None,
+            )
+            return None
         except Exception as exc:
             self.session.rollback()
             # Never persist arbitrary exception text: requests may include secrets/PII.
@@ -84,6 +93,7 @@ class Pipeline:
                 "failure",
                 stage=name,
                 error_type=type(exc).__name__,
+                reason=str(exc) if isinstance(exc, Blocked) else "See doctor and stage configuration",
                 prospect_id=prospect.id if prospect else None,
             )
             return None
@@ -223,7 +233,7 @@ class Pipeline:
         today = now().replace(hour=0, minute=0, second=0, microsecond=0)
         count = self.session.scalar(select(func.count()).select_from(Site).where(Site.created_at >= today))
         if count >= self.config.limits.previews_daily:
-            raise Blocked("Global daily preview cap reached")
+            raise CapacityDeferred("Global daily preview cap reached")
         audit = self.session.scalar(select(Audit).where(Audit.prospect_id == prospect.id))
         design = self.ai.generate(
             "Plan a modern, accessible responsive website. All title, hero and service quotes must be "
@@ -302,7 +312,14 @@ class Pipeline:
             )
             if site:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
-        discovered_location = self.step("discovery", lambda: self.discover(country))
+        schedule_date = now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()
+        discovery_checkpoint = get_config(self.session, "discovery_checkpoint")
+        if scheduled and discovery_checkpoint.get("date") == schedule_date:
+            discovered_location = True
+        else:
+            discovered_location = self.step("discovery", lambda: self.discover(country))
+            if scheduled and discovered_location:
+                set_config(self.session, "discovery_checkpoint", {"date": schedule_date})
         query = (
             select(Prospect)
             .where(Prospect.status.in_(["discovered", "audited"]))
@@ -345,11 +362,13 @@ class Pipeline:
         from email.utils import parseaddr
 
         from website_agent.database import GmailThread
-        from website_agent.gmail import headers
+        from website_agent.gmail import failed_recipients, headers
 
         for incoming in self.gmail.messages(query):
             sender = parseaddr(headers(incoming).get("from", ""))[1].lower()
             prospect = self.session.scalar(select(Prospect).where(Prospect.email == sender))
+            if not prospect and (failed := failed_recipients(incoming)):
+                prospect = self.session.scalar(select(Prospect).where(Prospect.email.in_(failed)))
             if not prospect:
                 thread = self.session.scalar(
                     select(GmailThread).where(GmailThread.thread_id == incoming["threadId"])
@@ -366,7 +385,11 @@ class Pipeline:
                 continue
             # Defer Gemini initialization until classification truly needs it; opt-outs must
             # work even when the model/key is unavailable.
-            category = process_reply(self.session, prospect, incoming, self)
+            category = self.step(
+                "reply_classification",
+                lambda p=prospect, msg=incoming: process_reply(self.session, p, msg, self),
+                prospect,
+            )
             if category:
                 self.log("reply_classified", prospect_id=prospect.id, category=category)
                 if category == "Unsubscribe":
@@ -379,20 +402,29 @@ class Pipeline:
                         gmail_thread=incoming["threadId"],
                         action="Review Gmail thread and acknowledgment draft",
                     )
-                    site = self.session.scalar(
-                        select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
-                    )
-                    if site:
-                        ack = prepare(self.session, prospect, site, self.settings, self.ai, "acknowledgment")
-                        create_draft(self.session, self.gmail, self.settings, ack)
-                        if self.settings.enable_routine_replies:
-                            send_controlled(
-                                self.session, self.gmail, self.settings, self.config, ack, self.verify
-                            )
-        set_config(self.session, "reply_checkpoint", {"at": began.isoformat()})
+        # Retry saved acknowledgment work independently of already-classified messages.
+        for prospect in self.session.scalars(
+            select(Prospect).where(Prospect.status.in_(["interested", "needs_information"]))
+        ).all():
+            self.step("acknowledgment", lambda p=prospect: self.acknowledge(p), prospect)
+        if not self.run.summary.get("failure"):
+            set_config(self.session, "reply_checkpoint", {"at": began.isoformat()})
+
+    def acknowledge(self, prospect):
+        site = self.session.scalar(
+            select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
+        )
+        if not site:
+            return
+        ack = prepare(self.session, prospect, site, self.settings, self.ai, "acknowledgment")
+        create_draft(self.session, self.gmail, self.settings, ack)
+        if self.settings.enable_routine_replies:
+            send_controlled(self.session, self.gmail, self.settings, self.config, ack, self.verify)
 
     def followups(self):
         self.replies()  # Must complete successfully before ANY followup processing.
+        if self.run.summary.get("failure"):
+            raise Blocked("Reply synchronization incomplete; followups paused")
         for prospect in self.session.scalars(select(Prospect).where(Prospect.status == "contacted")).all():
             for sequence in range(1, self.config.limits.max_followups + 1):
                 if not followup_eligible(self.session, prospect, self.config, now(), sequence):

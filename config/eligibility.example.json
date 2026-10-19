@@ -1,0 +1,16 @@
+[
+  {
+    "domain": "example.com",
+    "basis": "express_consent",
+    "evidence_reference": "private consent record ID",
+    "reviewed_by": "qualified reviewer",
+    "valid_until": "2026-12-31",
+    "contact_type": "corporate",
+    "base44_excluded": false,
+    "audience_evidence": "owner-approved Base44 exclusion record",
+    "routine_reply_authorized": false,
+    "verified_email": "contact@example.com",
+    "email_evidence_reference": "URL or private verification record"
+  }
+]
+

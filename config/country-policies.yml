@@ -1,0 +1,90 @@
+# Every jurisdiction is draft-only until a qualified reviewer supplies current rules.
+US:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+GB:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+CA:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+AU:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+IN:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+AE:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+DE:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+FR:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+JP:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+SG:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+NZ:
+  enabled: false
+  reviewed_by: ''
+  legal_reference: ''
+  valid_until: ''
+  allowed_bases: []
+  allowed_contact_types: []
+  contact_hours: [9, 17]
+

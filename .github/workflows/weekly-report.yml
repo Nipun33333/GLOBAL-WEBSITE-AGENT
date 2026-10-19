@@ -1,0 +1,16 @@
+name: Weekly report
+on:
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  run:
+    if: vars.AUTOMATION_ENABLED == 'true'
+    uses: ./.github/workflows/_agent-runtime.yml
+    with:
+      command: report
+      scheduled: false
+      production: true
+    secrets: inherit

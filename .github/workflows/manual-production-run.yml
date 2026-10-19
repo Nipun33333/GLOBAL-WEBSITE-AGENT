@@ -1,0 +1,26 @@
+name: Manual Production Run
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        type: choice
+        options: [daily, replies, followups, report, reconcile, live-smoke]
+        default: daily
+      country:
+        description: 'ISO country code or leave empty for worldwide rotation'
+        type: string
+        default: ''
+      production:
+        description: 'Request sending; all configuration, history, policy and copy gates still apply'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  run:
+    uses: ./.github/workflows/_agent-runtime.yml
+    with:
+      command: ${{ inputs.command }}
+      country: ${{ inputs.country }}
+      production: ${{ inputs.production }}
+    secrets: inherit

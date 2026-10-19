@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "global-website-agent"
+version = "0.1.0"
+description = "Durable global website research, preview generation and controlled outreach"
+requires-python = ">=3.12"
+dependencies = [
+  "google-genai>=1.0,<3", "google-auth>=2.0,<3", "google-auth-oauthlib>=1.2,<2",
+  "httpx>=0.28,<1", "urllib3>=2.5,<3", "certifi>=2025.1",
+  "sqlalchemy>=2.0,<3", "psycopg[binary]>=3.2,<4", "pydantic>=2.10,<3",
+  "pydantic-settings>=2.7,<3", "PyYAML>=6,<7", "beautifulsoup4>=4.13,<5",
+  "holidays>=0.70,<1", "tenacity>=9,<10", "playwright>=1.50,<2", "tzdata>=2025.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.11,<1", "pip-audit>=2.9,<3"]
+
+[project.scripts]
+website-agent = "website_agent.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/website_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["postgres: requires TEST_DATABASE_URL", "browser: requires Chromium"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

@@ -1,0 +1,8 @@
+{
+  "reviewed_by": "owner",
+  "import_digest": "exact SHA-256 from import-history",
+  "base44_audience_exclusion_reference": "documented audience exclusion / shared campaign ownership",
+  "history_export_complete": false,
+  "suppression_export_complete": false
+}
+

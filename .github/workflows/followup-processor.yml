@@ -1,0 +1,16 @@
+name: Followup processor
+on:
+  schedule:
+    - cron: '42 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  run:
+    if: vars.AUTOMATION_ENABLED == 'true'
+    uses: ./.github/workflows/_agent-runtime.yml
+    with:
+      command: followups
+      scheduled: false
+      production: true
+    secrets: inherit

@@ -1,0 +1,18 @@
+{
+  "source": "Base44 export reviewed by owner",
+  "exported_at": "2026-10-20T00:00:00Z",
+  "contacts": [
+    {
+      "email": "contact@example.com",
+      "domain": "example.com",
+      "gmail_thread_id": "replace-with-real-thread-id"
+    }
+  ],
+  "opt_outs": [
+    {
+      "email": "info@example.org",
+      "domain": "example.org"
+    }
+  ]
+}
+

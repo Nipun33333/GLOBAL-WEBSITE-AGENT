@@ -1,0 +1,66 @@
+# Global Website Agent
+
+A Python application for global business discovery, evidence-based website qualification, safe website concept generation, verified HTTPS previews, and controlled Gmail outreach. PostgreSQL is the durable source of truth; GitHub Actions runs it while your laptop is off.
+
+**Deployment status: implementation supplied, external integrations not yet verified.** Initial setup is draft-only. No production credentials were provided during implementation. No business emails have been sent, no paid services enabled, and the existing Base44 system has not been accessed or changed.
+
+## Start here
+
+1. Follow [SETUP_GUIDE.md](SETUP_GUIDE.md) for secrets, OAuth, provider authorization, and database setup.
+2. Follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for hosting, schedules, manual runs, and production activation.
+3. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [SECURITY.md](SECURITY.md), and [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+4. Consult [docs/HANDOVER.md](docs/HANDOVER.md) for the actual verification record and complete file inventory.
+
+```bash
+python -m pip install uv==0.11.16
+uv sync --frozen --extra dev
+uv run playwright install chromium
+uv run pytest
+uv run website-agent doctor
+# After configuring .env with a dedicated PostgreSQL database:
+uv run website-agent migrate
+uv run website-agent daily
+```
+
+`doctor` lists missing setting names without displaying secret values. `doctor --live` performs read-only integration checks. `live-smoke` performs explicit generation, deployment, browser checks, and a Gmail draft addressed to the owner; it never sends email. Mock tests never call live commercial APIs.
+
+## Implemented flow
+
+```mermaid
+flowchart LR
+    A[Licensed discovery API] --> B[Public website audit]
+    B --> C[Gemini qualification]
+    C --> D[Validated website source]
+    D --> E[Netlify draft deployment]
+    E --> F[HTTPS and Chromium checks]
+    F --> G[Gmail draft]
+    G --> H{History, consent, policy, identity and budget gates}
+    H -->|Authorized production mode| I[Verified Gmail send]
+    I --> J[Replies and suppression]
+    I --> K[Business-day followups]
+    J --> K
+```
+
+The application includes all fourteen requested persistent tables, immutable migration SQL, global capacity controls, database locks, deterministic email identifiers, reply classification, imported history/suppressions, resumable hosting steps, bounded AI requests, and job-summary reporting.
+
+Configuration ships with eleven countries and twelve niches. Countries, cities, languages, time zones, search strings, daily budgets, and eligibility policies are configured in YAML. New countries require a supported holiday calendar and a reviewed sending policy; otherwise sends remain blocked.
+
+All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. CI checks formatting, tests with a real PostgreSQL service, browser rendering, and dependency advisories.
+
+## Default global limits
+
+| Setting | Default |
+|---|---:|
+| Businesses discovered per run | 30 |
+| Websites inspected per run | 10 |
+| Qualified businesses selected per run | 5 |
+| New previews per UTC day | 2 |
+| New outreach/acknowledgment sends per UTC day | 2 |
+| Followup sends per UTC day | 2 |
+| Followups per prospect | 2 |
+| Minimum time between outreach steps | 5 local business days |
+| Qualification score | below 55 / 100 |
+| Gemini request attempts per UTC day | 30 |
+| Configured Gemini daily budget | USD 1.00 |
+
+No universal free-tier claim is made. Provider contracts, Gmail/Actions limits, hosting retention, model access, and account-specific quotas require verification. There are no purchase, billing activation, or account-management actions in the application.

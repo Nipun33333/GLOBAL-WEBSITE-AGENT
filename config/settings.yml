@@ -1,0 +1,96 @@
+# All limits are GLOBAL. Edit configuration, not Python, to change coverage.
+limits:
+  discovered: 30
+  inspected: 10
+  qualified: 5
+  previews_daily: 2
+  outreach_daily: 2
+  followups_daily: 2
+  max_followups: 2
+  threshold: 55
+  ai_requests_daily: 30
+  ai_budget_usd: 1.0
+  database_max_mb: 400
+schedule_timezone: UTC
+schedule_hour: 3
+research_hours: [8, 20]
+discovery_provider: brave
+# Must reference a reviewed agreement permitting storage AND this marketing use.
+# Standard search availability does not grant these rights.
+provider_agreement_reference: ''
+storage_and_outreach_use_authorized: false
+discovery_endpoint: ''
+search_template: '{niche} {city} {country} official website'
+# Add verified current pricing per million tokens for each enabled model.
+# Example shape only: {gemini-model: {input_per_million: 0.0, output_per_million: 0.0}}
+model_prices: {}
+niches:
+  - salons
+  - spas
+  - gyms
+  - fitness studios
+  - dentists
+  - restaurants
+  - cafes
+  - retail stores
+  - barbershops
+  - clinics
+  - repair shops
+  - small professional services
+locations:
+  - country: US
+    city: New York
+    timezone: America/New_York
+    language: en
+    subdivision: NY
+  - country: GB
+    city: London
+    timezone: Europe/London
+    language: en
+    subdivision: ENG
+  - country: CA
+    city: Toronto
+    timezone: America/Toronto
+    language: en
+    subdivision: 'ON'
+  - country: AU
+    city: Sydney
+    timezone: Australia/Sydney
+    language: en
+    subdivision: NSW
+  - country: IN
+    city: Mumbai
+    timezone: Asia/Kolkata
+    language: hi
+    subdivision: MH
+  - country: AE
+    city: Dubai
+    timezone: Asia/Dubai
+    language: ar
+    subdivision: null
+  - country: DE
+    city: Berlin
+    timezone: Europe/Berlin
+    language: de
+    subdivision: BE
+  - country: FR
+    city: Paris
+    timezone: Europe/Paris
+    language: fr
+    subdivision: null
+  - country: JP
+    city: Tokyo
+    timezone: Asia/Tokyo
+    language: ja
+    subdivision: null
+  - country: SG
+    city: Singapore
+    timezone: Asia/Singapore
+    language: en
+    subdivision: null
+  - country: NZ
+    city: Auckland
+    timezone: Pacific/Auckland
+    language: en
+    subdivision: AUK
+

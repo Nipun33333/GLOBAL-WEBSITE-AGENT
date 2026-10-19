@@ -235,7 +235,7 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
     if inbound and message.kind != "acknowledgment":
         prospect.replied_at = at
         prospect.status = "replied"
-        if any(STOP_PATTERNS.search(text_body(m)) for m in inbound):
+        if any(STOP_PATTERNS.search(headers(m).get("subject", "") + "\n" + text_body(m)) for m in inbound):
             suppress(session, prospect.email, "unsubscribe", "Gmail pre-send scan")
         session.commit()
         return False

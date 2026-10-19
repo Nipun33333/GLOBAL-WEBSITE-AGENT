@@ -380,7 +380,9 @@ class Pipeline:
                 from website_agent.gmail import text_body
                 from website_agent.outreach import STOP_PATTERNS
 
-                if sender and STOP_PATTERNS.search(text_body(incoming)):
+                if sender and STOP_PATTERNS.search(
+                    headers(incoming).get("subject", "") + "\n" + text_body(incoming)
+                ):
                     suppress(self.session, sender, "unsubscribe", "gmail:" + incoming["id"])
                 continue
             # Defer Gemini initialization until classification truly needs it; opt-outs must

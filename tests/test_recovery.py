@@ -324,3 +324,23 @@ def test_report_distinguishes_draft_and_actual_send(
     assert "Verified Gmail drafts created: 1" in result
     assert "Verified new outreach sent: 0" in result
     assert prospect.email not in result
+
+
+def test_unknown_subject_only_unsubscribe_is_saved(session, settings, config, fakes):
+    settings.gemini_api_key = ""
+    fakes.gmail.incoming_messages = [
+        {
+            "id": "subject-optout",
+            "threadId": "unknown-thread",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "info@unknown.example"},
+                    {"name": "Subject", "value": "unsubscribe"},
+                ]
+            },
+        }
+    ]
+    pipe = Pipeline(session, settings, config, gmail=fakes.gmail)
+    pipe.start("replies", "subject-only")
+    pipe.replies()
+    assert session.scalar(select(Suppression).where(Suppression.key == "info@unknown.example"))

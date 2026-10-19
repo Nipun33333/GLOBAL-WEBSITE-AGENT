@@ -296,3 +296,31 @@ def test_capacity_is_deferred_not_workflow_failure(session, settings, config):
     pipe.finish()
     assert pipe.run.status == "completed"
     assert pipe.run.summary["capacity_deferred"] == 1
+
+
+def test_late_reply_cannot_revive_optout(session, prospect, fakes):
+    from website_agent.outreach import process_reply
+
+    prospect.status = "unsubscribed"
+    message = {
+        "id": "late",
+        "threadId": "late-thread",
+        "snippet": "Interested",
+        "payload": {"headers": [{"name": "From", "value": prospect.email}]},
+    }
+    assert process_reply(session, prospect, message, fakes.ai) is None
+    assert prospect.status == "unsubscribed" and prospect.replied_at
+
+
+def test_report_distinguishes_draft_and_actual_send(
+    session, settings, config, prospect, site, fakes, tmp_path, monkeypatch
+):
+    from website_agent.reporting import report
+
+    monkeypatch.chdir(tmp_path)
+    msg = prepare(session, prospect, site, settings, fakes.ai)
+    create_draft(session, fakes.gmail, settings, msg)
+    result = report(session)
+    assert "Verified Gmail drafts created: 1" in result
+    assert "Verified new outreach sent: 0" in result
+    assert prospect.email not in result

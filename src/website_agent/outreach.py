@@ -296,6 +296,11 @@ def process_reply(session, prospect, message, ai):
     if message["id"] in thread.seen_ids:
         return None
     prospect.replied_at = now()  # Stop followups BEFORE classification/network calls.
+    if prospect.status in {"unsubscribed", "rejected", "delivery_failure"}:
+        # Older/late messages cannot revive a terminal contact decision.
+        thread.seen_ids = [*thread.seen_ids, message["id"]]
+        session.commit()
+        return None
     prospect.status = "replied"
     session.commit()
     body = text_body(message)

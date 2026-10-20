@@ -29,7 +29,7 @@ def business_due(sent_at, country, timezone, subdivision=None, days=5):
     return local
 
 
-def rotate(session, config, country=None, at=None):
+def rotate(session, config, country=None, at=None, exclude_cities=None):
     at = at or now()
     for location in config.locations:
         for niche in config.niches:
@@ -49,6 +49,8 @@ def rotate(session, config, country=None, at=None):
     configured_countries = {loc.country for loc in config.locations}
     minimum = min((counts[c] for c in configured_countries), default=0)
     for row in rows:
+        if exclude_cities and (row.country, row.city) in exclude_cities:
+            continue
         location = next(
             (loc for loc in config.locations if loc.country == row.country and loc.city == row.city), None
         )

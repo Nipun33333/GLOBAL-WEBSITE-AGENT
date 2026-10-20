@@ -37,3 +37,7 @@ This is an implemented application, not a claim of verified production operation
 - [ ] Actions secrets/variables configured; scheduled and manual draft-only runs pass.
 - [ ] Provider account limits, storage/retention, notification settings and billing alerts reviewed.
 - [ ] Only then enable sending, with both environment and invocation gates.
+
+## Zero-key discovery
+
+The default discovery path does not require a search API key. OSM fallback remains permission-gated. Bounded scans can legitimately defer with no results; strict name/locality/own-domain contact verification rejects incomplete records. Local caches do not survive fresh Actions runners, but PostgreSQL checkpoints and pending candidates do. Detailed limits and recovery procedures are in [DISCOVERY.md](DISCOVERY.md). Historical verification records above do not claim live verification of the new discovery path.

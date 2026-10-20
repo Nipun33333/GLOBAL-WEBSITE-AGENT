@@ -14,9 +14,10 @@ limits:
 schedule_timezone: UTC
 schedule_hour: 3
 research_hours: [8, 20]
-discovery_provider: brave
+discovery_provider: open_data
 # Must reference a reviewed agreement permitting storage AND this marketing use.
 # Standard search availability does not grant these rights.
+# The following legacy paid-search settings are unused in open_data mode.
 provider_agreement_reference: ''
 storage_and_outreach_use_authorized: false
 discovery_endpoint: ''
@@ -40,57 +41,101 @@ niches:
 locations:
   - country: US
     city: New York
+    bbox: [-74.05, 40.65, -73.85, 40.85]
     timezone: America/New_York
     language: en
     subdivision: NY
   - country: GB
     city: London
+    bbox: [-0.3, 51.4, 0.05, 51.6]
     timezone: Europe/London
     language: en
     subdivision: ENG
   - country: CA
     city: Toronto
+    bbox: [-79.55, 43.58, -79.2, 43.8]
     timezone: America/Toronto
     language: en
     subdivision: 'ON'
   - country: AU
     city: Sydney
+    bbox: [151.05, -33.98, 151.3, -33.75]
     timezone: Australia/Sydney
     language: en
     subdivision: NSW
   - country: IN
     city: Mumbai
+    bbox: [72.78, 18.9, 72.98, 19.2]
     timezone: Asia/Kolkata
     language: hi
     subdivision: MH
   - country: AE
     city: Dubai
+    bbox: [55.1, 25.0, 55.4, 25.3]
     timezone: Asia/Dubai
     language: ar
     subdivision: null
   - country: DE
     city: Berlin
+    bbox: [13.2, 52.4, 13.55, 52.6]
     timezone: Europe/Berlin
     language: de
     subdivision: BE
   - country: FR
     city: Paris
+    bbox: [2.25, 48.8, 2.42, 48.92]
     timezone: Europe/Paris
     language: fr
     subdivision: null
   - country: JP
     city: Tokyo
+    bbox: [139.6, 35.55, 139.85, 35.8]
     timezone: Asia/Tokyo
     language: ja
     subdivision: null
   - country: SG
     city: Singapore
+    bbox: [103.6, 1.2, 104.0, 1.45]
     timezone: Asia/Singapore
     language: en
     subdivision: null
   - country: NZ
     city: Auckland
+    bbox: [174.65, -36.95, 174.85, -36.78]
     timezone: Pacific/Auckland
     language: en
     subdivision: AUK
 
+
+# Zero-key discovery. These are search envelopes, not legal/administrative boundaries.
+# Address city/country must independently match; unknown geography is rejected.
+discovery:
+  source_priority: [overture, osm_extract]
+  release: '2026-09-23.1'
+  release_reference: 'https://docs.overturemaps.org/getting-data/'
+  overture_enabled: true
+  radius_steps_km: [3, 8, 15]
+  max_radius_km: 25
+  max_cities: 2
+  max_queries: 8
+  max_candidates: 120
+  max_files_per_query: 8
+  max_requests: 160
+  max_download_bytes: 64000000
+  max_disk_bytes: 128000000
+  max_memory_mb: 512
+  max_seconds: 300
+  max_attempts: 3
+  retry_base_seconds: 1
+  cooldown_seconds: 3600
+  empty_retry_hours: 24
+  max_retry_cycles: 7
+  cache_hours: 168
+  taxonomy_path: config/discovery-taxonomy.yml
+  osm_extracts: []
+  osm_license_review_reference: ''
+  osm_database_obligations_accepted: false
+  overpass_endpoint: ''
+  overpass_private_or_contracted: false
+  overpass_commercial_use_authorized: false
+  overpass_agreement_reference: ''

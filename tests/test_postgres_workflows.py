@@ -42,8 +42,8 @@ def test_required_workflows_and_safety():
         "followup-processor",
         "weekly-report",
         "manual-production-run",
-        "tests",
     ]
+    assert not (root / "tests.yml").exists()
     for name in required:
         data = yaml.load((root / (name + ".yml")).read_text(), Loader=yaml.BaseLoader)
         assert data["permissions"]["contents"] == "read"

@@ -1,0 +1,163 @@
+# Explicit category allowlists; no substring or AI-based category expansion.
+review_reference: https://docs.overturemaps.org/guides/places/ (conservative exact
+  categories; 2026-10-21)
+niches:
+  salons:
+    primary:
+      overture:
+      - beauty_salon
+      - hair_salon
+      osm:
+      - shop=hairdresser
+      - shop=beauty
+    related:
+      overture:
+      - barber_shop
+      - barbershop
+      osm: []
+  spas:
+    primary:
+      overture:
+      - spa
+      - day_spa
+      osm:
+      - leisure=spa
+    related:
+      overture:
+      - beauty_salon
+      osm:
+      - shop=beauty
+  gyms:
+    primary:
+      overture:
+      - gym
+      - fitness_center
+      osm:
+      - leisure=fitness_centre
+    related:
+      overture:
+      - fitness_studio
+      osm:
+      - leisure=fitness_station
+  fitness studios:
+    primary:
+      overture:
+      - fitness_studio
+      - yoga_studio
+      osm:
+      - leisure=fitness_centre
+    related:
+      overture:
+      - gym
+      - fitness_center
+      osm: []
+  dentists:
+    primary:
+      overture:
+      - dentist
+      osm:
+      - amenity=dentist
+    related:
+      overture:
+      - dental_clinic
+      osm: []
+  restaurants:
+    primary:
+      overture:
+      - restaurant
+      osm:
+      - amenity=restaurant
+    related:
+      overture:
+      - casual_eatery
+      - diner
+      osm: []
+  cafes:
+    primary:
+      overture:
+      - cafe
+      osm:
+      - amenity=cafe
+    related:
+      overture:
+      - coffee_shop
+      osm: []
+  retail stores:
+    primary:
+      overture:
+      - retail
+      - clothing_store
+      osm:
+      - shop=clothes
+    related:
+      overture:
+      - gift_shop
+      osm:
+      - shop=gift
+  barbershops:
+    primary:
+      overture:
+      - barber_shop
+      - barbershop
+      osm:
+      - shop=hairdresser
+    related:
+      overture:
+      - hair_salon
+      osm: []
+  clinics:
+    primary:
+      overture:
+      - medical_clinic
+      - clinic
+      osm:
+      - amenity=clinic
+    related:
+      overture:
+      - doctor
+      osm:
+      - amenity=doctors
+  repair shops:
+    primary:
+      overture:
+      - auto_repair
+      - automotive_repair
+      osm:
+      - shop=car_repair
+    related:
+      overture:
+      - tire_shop
+      osm:
+      - shop=tyres
+  small professional services:
+    primary:
+      overture:
+      - accountant
+      osm:
+      - office=accountant
+    related:
+      overture:
+      - tax_preparation
+      osm:
+      - office=tax_advisor
+  barber:
+    primary:
+      overture:
+      - barber_shop
+      osm:
+      - shop=hairdresser
+    related:
+      overture:
+      - barbershop
+      - hair_salon
+      osm: []
+  cafe:
+    primary:
+      overture:
+      - cafe
+      osm:
+      - amenity=cafe
+    related:
+      overture:
+      - coffee_shop
+      osm: []

@@ -8,6 +8,7 @@
 |---|---|
 | `settings.py` | Validated environment/YAML configuration |
 | `database.py` | Fourteen ORM tables, session lock, timestamps, suppression/config helpers |
+| `discovery_engine.py`, `discovery_datasets.py`, `discovery_worker.py`, `discovery_verify.py`, `discovery_support.py` | Bounded zero-key readers, source fallback, supervised decoding, evidence checks and persistent recovery |
 | `discovery.py` | Provider protocol, Brave/authorized JSON integrations, read retries |
 | `security.py` | DNS-pinned public fetcher, robots, URL/email validation |
 | `analysis.py` | Weighted static audit with evidence, source snippets, contact research |
@@ -50,3 +51,5 @@ Idempotent provider GETs retry transport/5xx errors three times with backoff. Ge
 Reply processing isolates classification failures per message. One unavailable model call cannot prevent a later deterministic opt-out or structured delivery-status report from being processed. The reply checkpoint advances only after a clean sweep; failed sweeps stop followups. Acknowledgment work retries independently of already-classified messages.
 
 Reports contain stage counters, selected locations, audit scores, verified URLs, actual draft/send/followup counts, reply categories, owner notifications, cost reservations, database size and sanitized error types. They do not include OAuth tokens or raw email bodies. Full evidence lives in the restricted database.
+
+Zero-key discovery uses existing `configuration` rows for `discovery_task:*`, provider circuits and checkpoints; no migration or separate queue service is required. `business_sources.evidence` retains release, category, coordinates, verification and license provenance. See [DISCOVERY.md](DISCOVERY.md).

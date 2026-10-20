@@ -39,7 +39,9 @@ References: [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/st
 
 ## 3. Discovery authorization
 
-The implemented adapters are:
+The default `discovery_provider: open_data` requires **no paid discovery key**. Overture reads the verified pinned public Places release from its official AWS/Azure distribution. Optional OSM regional extracts and a private/contracted Overpass endpoint require explicit license/provider-use configuration. See [zero-key discovery](docs/DISCOVERY.md) for resource budgets, provenance, verification, recovery and a discovery-only command.
+
+The existing optional paid adapters remain available when explicitly selected:
 
 - **Brave Search API**: authorized HTTPS calls to the web-search endpoint with country/search/limit configuration. Results are candidates; the business website must still be independently researched and qualified.
 - **Licensed JSON API**: an authenticated HTTPS GET endpoint of your authorized provider using `q`, `country`, `city`, and `limit`. Response contract:
@@ -48,7 +50,7 @@ The implemented adapters are:
 {"businesses": [{"provider_id": "stable-authorized-id", "name": "Business name", "url": "https://business.example"}]}
 ```
 
-Set `DISCOVERY_API_KEY`. Select `discovery_provider` in YAML. For `licensed_json`, supply `discovery_endpoint`. Both adapters require `storage_and_outreach_use_authorized: true` and a nonempty `provider_agreement_reference` after checking your agreement. This attestation is an operational gate, not an automatic legal review.
+For these optional paid adapters only, set `DISCOVERY_API_KEY` and select `brave` or `licensed_json` in YAML. For `licensed_json`, supply `discovery_endpoint`. Both adapters require `storage_and_outreach_use_authorized: true` and a nonempty `provider_agreement_reference` after checking your agreement. This attestation is an operational gate, not an automatic legal review.
 
 Brave's standard offering does not universally grant result-storage rights, and its terms restrict certain unsolicited mass-email uses. Do not enable this adapter merely because you have an API key. Obtain the necessary rights or use an appropriately licensed provider. See [Brave API storage FAQ](https://brave.com/search/api/) and [provider terms](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service).
 
@@ -87,7 +89,7 @@ Configure the repository's `agent-runtime` GitHub Environment (or repository sec
 |---|---|
 | `DATABASE_URL` | Dedicated persistent PostgreSQL connection |
 | `GEMINI_API_KEY` | Authorized Gemini API access |
-| `DISCOVERY_API_KEY` | Authorized discovery provider |
+| `DISCOVERY_API_KEY` | Optional paid discovery provider; unused in default `open_data` mode |
 | `NETLIFY_AUTH_TOKEN` | Deployment access to the dedicated hosting project |
 | `NETLIFY_SITE_ID` | Existing dedicated Netlify project ID |
 | `GMAIL_CLIENT_ID` | Google OAuth client |

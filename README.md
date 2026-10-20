@@ -24,11 +24,15 @@ uv run website-agent daily
 
 `doctor` lists missing setting names without displaying secret values. `doctor --live` performs read-only integration checks. `live-smoke` performs explicit generation, deployment, browser checks, and a Gmail draft addressed to the owner; it never sends email. Mock tests never call live commercial APIs.
 
+## Zero-key discovery
+
+The default `open_data` mode uses Overture Maps with licensed OSM fallback, bounded geographic/category expansion, persistent recovery and deterministic website verification. It needs no discovery API key. Run `uv run website-agent discover --country US` for discovery only after database setup. It never initializes Gemini, Netlify or Gmail. Read [discovery setup, limits and recovery](docs/DISCOVERY.md) before a live run.
+
 ## Implemented flow
 
 ```mermaid
 flowchart LR
-    A[Licensed discovery API] --> B[Public website audit]
+    A[Overture and authorized OSM discovery] --> B[Public website audit]
     B --> C[Gemini qualification]
     C --> D[Validated website source]
     D --> E[Netlify draft deployment]

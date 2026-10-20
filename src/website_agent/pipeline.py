@@ -49,6 +49,7 @@ class Pipeline:
         self.web = web or PublicWeb(settings.research_user_agent)
         self.verifier = verifier or verify_preview
         self.run = None
+        self.discovery_outcome = None
 
     @property
     def ai(self):
@@ -100,7 +101,7 @@ class Pipeline:
 
     def start(self, kind, run_key):
         self.run = self.session.scalar(select(WorkflowRun).where(WorkflowRun.run_key == run_key))
-        if self.run and self.run.status == "completed":
+        if self.run and self.run.status.startswith("completed"):
             return False
         if not self.run:
             self.run = WorkflowRun(kind=kind, run_key=run_key, summary={})
@@ -129,6 +130,12 @@ class Pipeline:
                 raise Blocked("Configured database storage cap reached")
 
     def discover(self, country=None):
+        if self.config.discovery_provider == "open_data" and self.discovery is None:
+            from website_agent.discovery_engine import DiscoveryEngine
+
+            self.discovery_outcome = DiscoveryEngine(self.session, self.settings, self.config).run(country)
+            self.log("discovery_outcome", **self.discovery_outcome)
+            return self.discovery_outcome["status"].startswith("completed")
         selected = rotate(self.session, self.config, country)
         if not selected:
             self.log("location_deferred", reason="no eligible local research window")
@@ -213,11 +220,15 @@ class Pipeline:
         else:
             prospect.name = research.business_name_quote
             prospect.status = "qualified"
+            source = self.session.scalar(
+                select(BusinessSource).where(BusinessSource.prospect_id == prospect.id)
+            )
+            discovery_evidence = source.evidence if source else {}
             queue = self.session.scalar(
                 select(LocationQueue).where(
                     LocationQueue.country == prospect.country,
-                    LocationQueue.city == prospect.city,
-                    LocationQueue.niche == prospect.niche,
+                    LocationQueue.city == discovery_evidence.get("rotation_city", prospect.city),
+                    LocationQueue.niche == discovery_evidence.get("requested_niche", prospect.niche),
                 )
             )
             if queue:
@@ -467,5 +478,12 @@ class Pipeline:
                     self.log("followup_sent", prospect_id=prospect.id, sequence=sequence)
 
     def finish(self):
-        self.run.status = "partial" if self.run.summary.get("failure") else "completed"
+        if self.run.summary.get("failure"):
+            self.run.status = "partial"
+        elif self.discovery_outcome and (
+            self.run.kind == "discover" or not self.discovery_outcome["status"].startswith("completed")
+        ):
+            self.run.status = self.discovery_outcome["status"]
+        else:
+            self.run.status = "completed"
         self.session.commit()

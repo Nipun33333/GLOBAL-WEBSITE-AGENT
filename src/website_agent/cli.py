@@ -70,7 +70,6 @@ def doctor(settings, live=False):
     required = [
         "database_url",
         "gemini_api_key",
-        "discovery_api_key",
         "netlify_auth_token",
         "netlify_site_id",
         "gmail_client_id",
@@ -82,6 +81,8 @@ def doctor(settings, live=False):
         "sender_postal_address",
         "owner_email",
     ]
+    if settings.config().discovery_provider != "open_data":
+        required.append("discovery_api_key")
     result = {name.upper(): "configured" if getattr(settings, name) else "MISSING" for name in required}
     result["external_verification"] = "NOT RUN"
     if live:
@@ -107,6 +108,7 @@ def parser():
             "migrate",
             "doctor",
             "daily",
+            "discover",
             "replies",
             "followups",
             "report",
@@ -201,12 +203,19 @@ def run_cli():
             )
             print("Wrote private/drafts.json (contains contact data; never commit).")
             return
-        sync_policies(session, settings.policy_path)
+        if args.command != "discover":
+            sync_policies(session, settings.policy_path)
         run_key = f"{args.command}:{os.getenv('GITHUB_RUN_ID', now().isoformat())}:{os.getenv('GITHUB_RUN_ATTEMPT', '1')}"
         if not pipeline.start(args.command, run_key):
             return
         try:
-            if args.command == "daily":
+            if args.command == "discover":
+                # Discovery-only cannot initialize Gmail, Gemini or Netlify or enable sending.
+                settings.enable_sending = False
+                settings.enable_routine_replies = False
+                pipeline.database_capacity()
+                pipeline.discover(args.country)
+            elif args.command == "daily":
                 pipeline.daily(args.country, args.scheduled)
             elif args.command == "replies":
                 pipeline.replies()
@@ -237,8 +246,12 @@ def run_cli():
             session.commit()
         finally:
             print(report(session, args.days if args.command == "report" else 1))
-        if pipeline.run.status in {"failed", "partial"}:
-            raise SystemExit(1)
+        if pipeline.run.status not in {
+            "completed",
+            "completed_with_results",
+            "completed_no_qualified_results",
+        }:
+            raise SystemExit(2 if pipeline.run.status.startswith("deferred") else 1)
 
 
 def main():

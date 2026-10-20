@@ -45,7 +45,7 @@ The application includes all fourteen requested persistent tables, immutable mig
 
 Configuration ships with eleven countries and twelve niches. Countries, cities, languages, time zones, search strings, daily budgets, and eligibility policies are configured in YAML. New countries require a supported holiday calendar and a reviewed sending policy; otherwise sends remain blocked.
 
-All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. CI checks formatting, tests with a real PostgreSQL service, browser rendering, and dependency advisories.
+All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. Tests and development tools remain available locally; automated test, lint and dependency-audit workflows have been removed.
 
 ## Default global limits
 

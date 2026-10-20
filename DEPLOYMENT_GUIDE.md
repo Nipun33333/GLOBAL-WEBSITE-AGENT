@@ -23,7 +23,6 @@ All GitHub cron expressions are UTC. Set `AUTOMATION_ENABLED=true` only after co
 | `followup-processor.yml` | Hourly at minute 42 | Processes replies first, then eligible followups |
 | `weekly-report.yml` | Monday 04:23 UTC | Seven-day digest |
 | `manual-production-run.yml` | Manual only | Explicit command, country and production-mode controls |
-| `tests.yml` | Push, pull request, manual | Mock external APIs, PostgreSQL transaction/lock checks, browser tests and dependency audit |
 
 The daily eligibility threshold is `schedule_hour` in `schedule_timezone` in YAML (default 03:00 UTC). Hourly polling lets an underserved country's own local research window open without permanently preferring countries awake at one fixed UTC time. Country search counts enforce fairness; oldest city/niche combinations win, with a bounded relevance preference. Public holidays, subdivisions, local weekends and time zones use the pinned `holidays`/`tzdata` packages. Missing calendars fail closed. Manual country selection bypasses country balancing, not the local time checks.
 

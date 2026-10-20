@@ -8,7 +8,7 @@
 - Defaults deny commercial sending in every jurisdiction. Legal-policy review, eligibility evidence and history/audience validation are required. Imported historical recipients and withdrawals are suppressed. SMTP delivery and external business replies are never inferred from model text.
 - Gmail uses compose and readonly scopes, validates the mailbox identity, and uses stable MIME Message-IDs. No email address guessing, impersonation, spoofed sender alias, automatic mailbox deletion, or anti-spam evasion is provided.
 - The database contains business contact data, evidence, message bodies and model cache entries. Restrict administrator access, encrypt provider storage/backups, define retention/deletion policies according to your jurisdiction/provider contracts, and isolate the runtime DB role. Do not expose the schema through a public client API.
-- Dependencies and hashes are committed in `uv.lock`, CI uses frozen installation, and GitHub action revisions use commit SHAs. Dependabot proposes updates; dependency advisories are checked in CI. This does not replace independent security review.
+- Dependencies and hashes are committed in `uv.lock`, production workflows use frozen installation, and GitHub action revisions use commit SHAs. Dependabot proposes updates; dependency advisory checks must now be run manually. This does not replace independent security review.
 
 If credentials leak, disable this repository's sending/automation variables, revoke the affected credentials with their provider, replace secrets, and inspect the durable ledger. Preserve suppression/history state. Never clear the database to fix a duplicate-send issue.
 

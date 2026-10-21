@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from website_agent.database import CountryPolicy, Suppression, get_config
+from website_agent.database import CountryPolicy, Suppression
 from website_agent.scheduler import contact_time
 from website_agent.security import domain, email_address
 
@@ -45,10 +45,9 @@ def eligible(session, prospect, settings, at, *, routine=False):
         reasons.append("prospect_stopped")
     if prospect.replied_at and not routine:
         reasons.append("reply_received")
-    # The agent is independent: historical Gmail recipients and suppressions
-    # are the anti-duplicate source; no other-platform audience approval exists.
-    if not get_config(session, "gmail_history_import").get("completed"):
-        reasons.append("gmail_sent_history_not_imported")
+    # Suppression records are durable; send_controlled performs a fresh Gmail
+    # Sent + inbound scan per recipient immediately before any Gmail send.
+    # Optional bulk history imports are never a precondition for this agent.
     row = session.scalar(select(CountryPolicy).where(CountryPolicy.country == prospect.country))
     policy = Policy.model_validate(row.policy if row else {})
     try:

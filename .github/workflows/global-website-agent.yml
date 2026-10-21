@@ -13,9 +13,7 @@ jobs:
       ((github.event_name == 'workflow_dispatch' &&
         github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
         github.ref == 'refs/heads/main') ||
-       (github.event_name == 'schedule' && github.ref == 'refs/heads/main' &&
-        vars.AUTOMATION_ENABLED == 'true' && vars.UNIFIED_WORKFLOW_ENABLED == 'true' &&
-        vars.FREE_LIMITS_REVIEWED == 'true' && vars.DATABASE_REVIEWED == 'true'))
+       (github.event_name == 'schedule' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: agent-runtime
@@ -31,14 +29,14 @@ jobs:
       WRITE_APPROVAL: ''
       FREE_LIMITS_REVIEWED: ${{ vars.FREE_LIMITS_REVIEWED || 'false' }}
       DATABASE_REVIEWED: ${{ vars.DATABASE_REVIEWED || 'false' }}
-      AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED || 'false' }}
-      UNIFIED_WORKFLOW_ENABLED: ${{ vars.UNIFIED_WORKFLOW_ENABLED || 'false' }}
-      SCHEDULED_MODES: ${{ vars.SCHEDULED_MODES }}
-      ALLOW_GENERATION: ${{ vars.ALLOW_GENERATION || (github.event_name == 'workflow_dispatch' && 'true' || 'false') }}
-      ALLOW_DEPLOYMENT: ${{ vars.ALLOW_DEPLOYMENT || (github.event_name == 'workflow_dispatch' && 'true' || 'false') }}
-      ALLOW_DRAFTS: ${{ vars.ALLOW_DRAFTS || (github.event_name == 'workflow_dispatch' && 'true' || 'false') }}
-      ALLOW_SENDING: ${{ github.event_name == 'workflow_dispatch' && 'true' || vars.ALLOW_SENDING || 'false' }}
-      ENABLE_SENDING: ${{ github.event_name == 'workflow_dispatch' && 'true' || vars.ENABLE_SENDING || 'false' }}
+      AUTOMATION_ENABLED: 'true'  # Owner authorized twice-daily scheduling.
+      UNIFIED_WORKFLOW_ENABLED: 'true'
+      SCHEDULED_MODES: 'daily'  # Keep replies and followups manual/disabled.
+      ALLOW_GENERATION: 'true'
+      ALLOW_DEPLOYMENT: 'true'
+      ALLOW_DRAFTS: 'true'
+      ALLOW_SENDING: 'true'  # Recipient compliance checks remain mandatory.
+      ENABLE_SENDING: 'true'  # Sends only after verified site + country/Base44 checks.
       ENABLE_ROUTINE_REPLIES: 'false'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

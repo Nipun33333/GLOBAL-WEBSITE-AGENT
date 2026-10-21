@@ -184,6 +184,15 @@ def test_one_click_launch_needs_no_user_inputs_and_cannot_cross_branch():
     selected = master.plan(one_click, SHA)
     assert selected["mode"] == "daily"
     assert selected["country"] == "GB"
+    assert master.plan(
+        env(
+            GITHUB_EVENT_NAME="schedule", GITHUB_REF="refs/heads/main",
+            AGENT_CRON="30 9 * * *", AUTOMATION_ENABLED="true",
+            UNIFIED_WORKFLOW_ENABLED="true", SCHEDULED_MODES="daily",
+        ),
+        SHA,
+    )["country"] == "GB"
+
     assert not selected["scheduled"]
     assert not selected["sending"]
     for change in (

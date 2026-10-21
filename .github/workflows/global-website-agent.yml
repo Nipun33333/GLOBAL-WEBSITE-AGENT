@@ -24,11 +24,11 @@ jobs:
       cancel-in-progress: false
     env:
       ONE_CLICK_MODE: 'true'
-      AGENT_MODE: ${{ inputs.mode }}
-      AGENT_COUNTRY: ${{ inputs.country }}
+      AGENT_MODE: 'daily'
+      AGENT_COUNTRY: ''
       AGENT_CRON: ${{ github.event.schedule }}
-      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
-      WRITE_APPROVAL: ${{ inputs.write_approval }}
+      REVIEWED_COMMIT: ''
+      WRITE_APPROVAL: ''
       FREE_LIMITS_REVIEWED: ${{ vars.FREE_LIMITS_REVIEWED || 'false' }}
       DATABASE_REVIEWED: ${{ vars.DATABASE_REVIEWED || 'false' }}
       AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED || 'false' }}

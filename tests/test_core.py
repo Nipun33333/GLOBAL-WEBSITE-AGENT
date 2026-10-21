@@ -155,6 +155,7 @@ def test_single_opportunity_configuration_and_two_ist_slots():
     import yaml
 
     data = yaml.safe_load(Path("config/settings.yml").read_text(encoding="utf-8"))
+    assert data["limits"]["discovered"] == 1
     assert data["limits"]["inspected"] == 1
     assert data["limits"]["qualified"] == 1
     assert data["limits"]["max_followups"] == 0

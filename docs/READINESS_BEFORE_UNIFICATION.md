@@ -2,7 +2,7 @@
 
 **Archived before workflow consolidation and Gemini fallback.** See [current readiness](FINAL_READINESS.md) for the latest implementation and validation.
 
-Work was limited to `Nipun33333/GLOBAL-WEBSITE-AGENT`. The existing Base44 system was not accessed. No credential value was retrieved, exported, printed or copied. No account diagnostic, production database write, migration, Gmail draft/send, model generation, deployment or billing activation was performed. Public dataset reads and offline tests are explicitly distinguished below.
+Work was limited to `Nipun33333/GLOBAL-WEBSITE-AGENT`. No other system was accessed. No credential value was retrieved, exported, printed or copied. No account diagnostic, production database write, migration, Gmail draft/send, model generation, deployment or billing activation was performed. Public dataset reads and offline tests are explicitly distinguished below.
 
 ## 1. GitHub
 
@@ -84,11 +84,11 @@ With routine replies disabled, the pipeline now creates no automatic acknowledgm
 
 Google's external OAuth Testing status normally limits refresh tokens for Gmail scopes to seven days. Publishing, verification and reauthorization requirements must be resolved in the account, not bypassed; publishing is not a guarantee of permanent tokens. See [Google's token-expiration guidance](https://developers.google.com/identity/protocols/oauth2#expiration).
 
-## 7. Base44 protection
+## 7. Historical suppression safeguards
 
-History imports, domain/mailbox exclusions, prior-contact checks, audience evidence gates and unsubscribe propagation through imports: **VERIFIED OFFLINE ONLY**. A newly found gap allowed pre-send eligibility to consider only the exact domain; it now also checks parent-domain suppressions, preventing a discovered subdomain from escaping a domain opt-out.
+History imports, domain/mailbox exclusions, prior-contact checks and unsubscribe propagation through imports: **VERIFIED OFFLINE ONLY**. A newly found gap allowed pre-send eligibility to consider only the exact domain; it now also checks parent-domain suppressions, preventing a discovered subdomain from escaping a domain opt-out.
 
-Actual current Base44 history, completed imports and exclusive audience partition: **BLOCKED** pending owner-supplied evidence. Base44 was not accessed. No cross-system live synchronization or race-free exclusivity is claimed. Discovery checks known imported suppressions; unknown history does not confer contact permission. Sending remains blocked until the separate history, audience and legal gates are satisfied.
+At the time of this archived review, full mailbox history and applicable sending permissions were unverified. Discovery checks all known suppressions; unknown external history does not grant permission to contact anyone. Current code relies on Gmail live prior-contact checks and jurisdiction-specific legal evidence, not an external-platform partition.
 
 ## 8. Automation and permissions
 
@@ -120,7 +120,7 @@ Review also covered existing SQL parameterization, advisory-lock ownership, fixe
 3. **Explicitly approve/run diagnostics only.** Review the current PR #6 head (`gh pr view 6 --repo Nipun33333/GLOBAL-WEBSITE-AGENT --json headRefOid --jq .headRefOid`). Open Actions → Manual live verification → Run workflow as Nipun33333. Select feature/free-overture-discovery, mode diagnostics, the reviewed full feature SHA, and set the two review booleans true only after items 1–2 are satisfied. Leave write_approval empty. This is the required separate explicit diagnostic approval. It reads metadata, refreshes OAuth and writes only sanitized reports; it does not change database records or mailboxes. It consumes Actions allowance and limited provider requests, so no zero-cost claim is made until quotas are confirmed. Re-run jobs is deliberately blocked; use a fresh reviewed dispatch. Inspect the summary and download its one-day artifact promptly.
 4. **Resolve only actual diagnostic failures.** For DATABASE_URL failures, use the same Supabase project's connection/TLS settings. For GEMINI_API_KEY errors, review the existing Google AI Studio project key restrictions and access; do not enable paid billing. For NETLIFY_AUTH_TOKEN/NETLIFY_SITE_ID, review the existing Netlify user application token and site configuration. For Gmail invalid_grant/invalid_client, open Google Cloud → Google Auth Platform → Audience/Clients/Data Access, resolve publishing/test-user/scope issues, then securely reauthorize with the existing helper and update only the affected repository secret under Settings → Secrets and variables → Actions. Never paste values into chat. These are conditional account changes, not requests to recreate all credentials; rotation/reauthorization requires owner action and should not add paid services.
 5. **Approve discovery writes separately, after diagnostics.** Confirm the US local research window, included capacity and imported exclusions. Only then explicitly authorize `APPROVE_US_DISCOVERY_WRITES` in a new discover dispatch using the reviewed SHA. This writes verified prospects, provenance and checkpoint/run records; it consumes included runner/database/network resources. No write test has been authorized or run. Inspect sanitized inserts/rejections/fallbacks/retry time and, through authorized read-only database inspection, persisted source evidence and checkpoints before retrying. Do not clear suppressions or reset uncertain outcomes.
-6. **Before later previews/drafts/outreach:** confirm free account generation/deployment allowances and separately approve one neutral generation/deployment and, if desired, one owner-addressed draft. These create external resources and may incur charges if allowances are insufficient; keep them blocked until verified. For OSM, review ODbL/provider obligations and bounded file staging before enabling it. For any future prospect sending, supply a current authorized Base44 history/opt-out export and exclusive audience assignment, complete sender/country/legal review, and issue a separate sending instruction. These actions are not prerequisites to finish this offline engineering work and are not authorized by merging PR #7. Keep PR #6 unmerged until you separately approve it.
+6. **Before later previews/drafts/outreach:** confirm free account generation/deployment allowances and separately approve one neutral generation/deployment and, if desired, one owner-addressed draft. These create external resources and may incur charges if allowances are insufficient; keep them blocked until verified. For OSM, review ODbL/provider obligations and bounded file staging before enabling it. For any future prospect sending, complete sender/country/legal review and confirm Gmail Sent/Inbox plus suppression checks, and issue a separate sending instruction. These actions are not prerequisites to finish this offline engineering work and are not authorized by merging PR #7. Keep PR #6 unmerged until you separately approve it.
 
 ## 11. Independent final verdict
 
@@ -132,6 +132,6 @@ Review also covered existing SQL parameterization, advisory-lock ownership, fixe
 | Non-sending website generation | BLOCKED | Account metadata/free tier/prices and generation approval outstanding |
 | Netlify demo deployment | BLOCKED | Account access/free quota and separate deployment approval outstanding |
 | Owner-reviewed Gmail draft creation | BLOCKED | OAuth/scopes/identity and separate draft approval outstanding |
-| Future legally authorized outreach | BLOCKED | Sending disabled; account, legal, history and exclusive-audience review outstanding |
+| Future legally authorized outreach | BLOCKED | Sending disabled in this archived review; account, legal, and Gmail history verification outstanding |
 
 The project is prepared for an owner-reviewed diagnostics run once its prerequisites are confirmed. It is not yet ready to claim safe persisted discovery, live preview generation/deployment, owner draft creation or automated emailing. Registration and all independently executable engineering/testing work in this review are complete; no unavailable live test is presented as a success.

@@ -14,8 +14,8 @@ from website_agent.settings import Config, SearchArea
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--country", default="US")
-    parser.add_argument("--city", default="New York")
+    parser.add_argument("--country", choices=["GB"], default="GB")
+    parser.add_argument("--city", default="London")
     parser.add_argument("--niche", default="salons")
     parser.add_argument("--endpoint", choices=["aws", "azure"], default="aws")
     parser.add_argument("--bbox", nargs=4, type=float)

@@ -90,7 +90,10 @@ def plan(env, actual_sha):
 
 def safe_readonly_account_checks(settings):
     """Metadata/identity only; no generation, deployment, draft or mail mutation."""
-    if os.getenv("LIVE_ACCOUNT_DIAGNOSTICS") != "true" or os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch":
+    if (
+        os.getenv("LIVE_ACCOUNT_DIAGNOSTICS") != "true"
+        or os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch"
+    ):
         return {}
     import httpx
 

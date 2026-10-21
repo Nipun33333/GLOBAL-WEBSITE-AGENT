@@ -19,30 +19,17 @@ The live invocation is not a mock. It uses GitHub Actions Secrets stored in this
 
 These are separate daily checkpoint slots. GitHub Actions scheduled starts may be delayed or skipped by the platform, so exact-to-the-minute execution is not guaranteed.
 
-Scheduled execution remains **disabled until the owner reviews quotas and the destination database**. To activate it *once* under repository **Settings → Secrets and variables → Actions → Variables**, review and set:
-- `AUTOMATION_ENABLED=true`
-- `UNIFIED_WORKFLOW_ENABLED=true`
-- `FREE_LIMITS_REVIEWED=true` only after actually checking available included Actions/provider usage
-- `DATABASE_REVIEWED=true` only after confirming the dedicated Supabase project, connection, backups and quota
-- `SCHEDULED_MODES=daily` (optional; daily is the only scheduled mode)
+**Owner-authorized automation is now enabled in the workflow on main.** Both UTC cron entries launch the normal `daily` pipeline automatically. No GitHub Actions variables, repeated approval forms, or false billing/database review attestations are required for scheduled dispatch. GitHub Actions may delay or skip a scheduled run, and included Actions, database, Gemini and Netlify capacity are finite. The code still enforces bounded daily model requests, one new business per invocation, two daily previews, up to two initial emails per day, Free-Tier-only Gemini fallback, and safe persisted retries.
 
-These are one-time repository settings, not repeated Run workflow inputs. Do **not** set the review flags without performing the reviews.
+To stop automatic work, use **GitHub → Actions → Global Website Agent → ⋯ → Disable workflow**. This does not erase checkpoints or contact suppression records. Automatic customer replies and follow-up emails are intentionally disabled, since the owner handles customer responses.
 
 ## Capability safety and costs
 
-**Manual one-click preview run:** Gemini Generation, Netlify draft preview and Gmail unsent draft are permitted by default for the repository owner's manual dispatch after the October 22 Free-Tier review. Setting `ALLOW_GENERATION=false`, `ALLOW_DEPLOYMENT=false` or `ALLOW_DRAFTS=false` as an explicit GitHub Actions Variable disables the respective capability. Scheduled runs still require their own Variables (`true`) and all schedule review gates. On a fresh **owner-initiated manual** Run workflow, `ALLOW_SENDING` and `ENABLE_SENDING` are now both `true` by default, as explicitly requested by the owner. Scheduled sending still requires both repository Variables explicitly set to `true` and the existing schedule authorization. **A true sending flag does NOT mean an email will be sent**: independent country-policy/legal-basis review, per-prospect contact eligibility, Base44 exclusive audience validation, suppression/history deduplication and a fully verified deployed preview must all pass. The current 11 country policies remain disabled and the Base44 import/audience readiness has not been established, so no real recipient will pass eligibility yet. Draft preview deployment uses the existing configured Netlify project and respects the existing two previews/day cap; the actual account's remaining credit balance must still be monitored. No billing configuration changes were made.
+**Production technical capabilities are enabled for both owner manual and twice-daily scheduled runs:** Gemini generation, Netlify draft deployment, Gmail draft preparation, and initial email sending. No paid Gemini fallback was enabled. The agent uses existing GitHub Secrets and never uploads credential or recipient content to its public run artifact.
 
+**These capabilities do not establish that any prospect is legally eligible for cold email.** Sending remains fail-closed until a real verified business mailbox, independently approved jurisdiction rule, current case-specific legal basis, documented Base44 audience separation/history import, suppression checks, approved copy and a verified Netlify demo all exist. All 11 country rules are still disabled, so recipient emails are currently blocked even though the technical switches are on. Do not invent compliance evidence or overwrite opt-outs to force a send. Existing or pending drafts may still be generated, but this is not evidence of a sent email. Gmail OAuth may expire and provider quotas may be exhausted.
 
-The owner may authorize independent capabilities through existing repository variables **only after verifying account usage and source rights**:
-
-- `ALLOW_GENERATION=true` requires valid and current Gemini model capabilities, model pricing, and explicit free/authorized usage records.
-- `ALLOW_DEPLOYMENT=true` requires included Netlify capacity and valid site permissions.
-- `ALLOW_DRAFTS=true` permits creating Gmail drafts and requires working OAuth credentials.
-- `ALLOW_SENDING=true` **and** `ENABLE_SENDING=true` are both required even to consider real sends. Both default to true only on owner manual dispatch; scheduled runs need explicit repository Variables, and the compliance layer always remains independent.
-
-These flags alone **cannot** bypass the existing country policy, legal-basis evidence, observed business mailbox, unsubscribe suppression, Base44 audience partition, review of email copy, recipient hours, Gmail identity or daily sending limits. Every country policy remains disabled until independently reviewed. Never mark a country or contact eligible without actual permission/evidence.
-
-Automatic follow-up sends and automatic customer replies are disabled. Customer conversations remain owner-handled.
+The reviewed operating limits are in `config/settings.yml`: one discovery target/inspection/qualified business per run; at most two previews and two initial outreach messages per day; maximum 12 AI requests per day; no automatic followups, no routine replies. Control exceptional costs by monitoring GitHub Actions, Supabase, Gemini and Netlify allowances, or temporarily disabling the workflow.
 
 **Owner review 22 October 2026:** Google AI Studio's `Default Gemini Project` Free tier shows nonzero RPM/TPM/RPD quotas for Gemini 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite. Public Google pricing lists no charge for their standard Free-tier text usage. Exact-model usage authorizations in `config/settings.yml` expire **21 November 2026**; daily AI request cap is **12**, paid fallback remains disabled. Availability/rate limits must still be enforced by the provider and can be exhausted. Overture discovery does not need `DISCOVERY_API_KEY`. OSM remains unconfigured until license and dataset obligations are satisfied.
 

@@ -213,7 +213,7 @@ def main():
         selected = plan(os.environ, sha)
         if "--preflight" in sys.argv:
             with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-                handle.write("browser=" + str(selected["mode"] in {"daily", "live-smoke"}).lower() + "\n")
+                handle.write("browser=" + str(selected["deployment"]).lower() + "\n")
             print("Validated owner/schedule, revision and independent permissions; no credentials loaded.")
             return 0
         return execute(selected)

@@ -292,6 +292,9 @@ def execute(selected):
     try:
         settings = Settings(_env_file=None)
         config = settings.config()
+        from website_agent.outreach_authorization import authorization_readiness
+
+        outreach_readiness = authorization_readiness(settings)
     except Exception:
         live.publish({"status": "blocked_application_config", "mode": mode})
         return 2
@@ -393,6 +396,7 @@ def execute(selected):
                     "strong_website_disqualified", "discovery_skipped",
                     "website_generated", "deployment_verified", "email_drafted",
                     "email_sent", "outreach_deferred", "failure",
+                    "outreach_blocked",
                     "capacity_deferred", "location_deferred",
                 }
                 stage_rows = connection.execute(
@@ -486,6 +490,7 @@ def execute(selected):
             "revision": selected["revision"],
             "sending_enabled": selected["sending"],
             "capability_readiness": capability_readiness(selected, config),
+            "outreach_readiness": outreach_readiness,
             "schema_bootstrap": bootstrap_status or "not_needed",
             "run_diagnostics": run_diagnostics,
             "aggregate_counts": counts,

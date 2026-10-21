@@ -25,6 +25,7 @@ from website_agent.generation import render, validate
 from website_agent.gmail import Gmail
 from website_agent.hosting import Netlify, verify_preview
 from website_agent.outreach import create_draft, followup_eligible, prepare, process_reply, send_controlled
+from website_agent.outreach_authorization import apply_recipient_evidence, load_authorization
 from website_agent.reporting import event
 from website_agent.scheduler import business_due, rotate
 from website_agent.security import Blocked, CapacityDeferred, PublicWeb, domain
@@ -51,6 +52,7 @@ class Pipeline:
         self.run = None
         self.discovery_outcome = None
         self.initial_sends_this_run = 0  # Strictly one new outreach message per workflow run.
+        self.outreach_authorization = load_authorization(settings)
 
     @property
     def ai(self):
@@ -317,6 +319,7 @@ class Pipeline:
         if self.initial_sends_this_run >= 1:
             self.log("outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run")
             return
+        apply_recipient_evidence(self.session, prospect, self.outreach_authorization)
         if not prospect.email or not prospect.contact_evidence.get("observed"):
             prospect.status = "no_contact"
             self.session.commit()
@@ -337,6 +340,8 @@ class Pipeline:
             if send_controlled(self.session, self.gmail, self.settings, self.config, message, self.verify):
                 self.initial_sends_this_run += 1
                 self.log("email_sent", prospect_id=prospect.id, gmail_id=message.gmail_id)
+            elif message.details.get("blocked_reasons"):
+                self.log("outreach_blocked", reasons=message.details["blocked_reasons"])
 
     def daily(self, country=None, scheduled=False):
         if country and country != self.config.operating_country:
@@ -350,13 +355,15 @@ class Pipeline:
         for prospect in self.session.scalars(
             select(Prospect).where(
                 Prospect.country == country, Prospect.status == "draft_ready"
-            ).order_by(Prospect.created_at).limit(1)
+            ).order_by(Prospect.created_at).limit(self.config.limits.inspected)
         ).all():
             site = self.session.scalar(
                 select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
             )
             if site:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
+            if self.initial_sends_this_run:
+                break
         if self.initial_sends_this_run:
             return  # Never contact two different businesses in one invocation.
         schedule_date = now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()

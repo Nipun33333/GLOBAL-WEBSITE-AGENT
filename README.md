@@ -10,6 +10,7 @@ A Python application for United Kingdom business discovery, evidence-based websi
 2. Follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for hosting, schedules, manual runs, and production activation.
 3. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [SECURITY.md](SECURITY.md), and [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 4. Read [docs/FINAL_READINESS.md](docs/FINAL_READINESS.md) for current evidence and one owner-action checklist; [docs/HANDOVER.md](docs/HANDOVER.md) retains the historical handover.
+5. Configure reviewed UK recipients using [docs/EMAIL_SENDING.md](docs/EMAIL_SENDING.md), then verify actual sends in the run summary.
 
 ```bash
 python -m pip install uv==0.11.16

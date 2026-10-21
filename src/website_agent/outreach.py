@@ -189,6 +189,10 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
     if message.state != "drafted":
         return False
     prospect = session.get(Prospect, message.prospect_id)
+    # A configured private recipient list also constrains direct/reply callers.
+    from website_agent.outreach_authorization import apply_recipient_evidence, load_authorization
+
+    apply_recipient_evidence(session, prospect, load_authorization(settings))
     if message.recipient != prospect.email:
         raise Blocked("Draft recipient no longer matches verified prospect contact")
     if message.details.get("sender_fingerprint") != sender_fingerprint(settings):

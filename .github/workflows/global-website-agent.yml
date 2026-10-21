@@ -84,6 +84,7 @@ jobs:
           REPLY_TO: ${{ secrets.REPLY_TO }}
           SENDER_POSTAL_ADDRESS: ${{ secrets.SENDER_POSTAL_ADDRESS }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          OUTREACH_AUTHORIZATION_JSON: ${{ secrets.OUTREACH_AUTHORIZATION_JSON }}
           DISCOVERY_API_KEY: ${{ secrets.DISCOVERY_API_KEY }}
         run: |
           # Optional project CA certificate, loaded from a one-time GitHub Secret.

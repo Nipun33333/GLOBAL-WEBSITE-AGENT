@@ -208,6 +208,7 @@ class Settings(BaseSettings):
     reply_to: str = ""
     sender_postal_address: str = ""
     owner_email: str = ""
+    outreach_authorization_json: str = Field(default="", repr=False)
     enable_generation: bool = False
     enable_deployment: bool = False
     enable_drafts: bool = False

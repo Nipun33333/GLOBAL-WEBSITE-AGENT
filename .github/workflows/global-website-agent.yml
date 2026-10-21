@@ -70,6 +70,7 @@ jobs:
       - name: Execute approved operation
         env:
           LIVE_ACCOUNT_DIAGNOSTICS: 'true'  # Owner-run metadata/identity only, no side effects.
+          SUPABASE_CA_CERT_PEM: ${{ secrets.SUPABASE_CA_CERT_PEM }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
@@ -86,7 +87,17 @@ jobs:
           SENDER_POSTAL_ADDRESS: ${{ secrets.SENDER_POSTAL_ADDRESS }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           DISCOVERY_API_KEY: ${{ secrets.DISCOVERY_API_KEY }}
-        run: uv run python scripts/master_entry.py
+        run: |
+          # Optional project CA certificate, loaded from a one-time GitHub Secret.
+          # No certificate bytes are logged or stored in workflow artifacts.
+          umask 077
+          if [ -n "$SUPABASE_CA_CERT_PEM" ]; then
+            export SUPABASE_CA_CERT_PATH="$RUNNER_TEMP/supabase-ca.pem"
+            printf '%s\n' "$SUPABASE_CA_CERT_PEM" > "$SUPABASE_CA_CERT_PATH"
+            unset SUPABASE_CA_CERT_PEM
+            trap 'rm -f "$SUPABASE_CA_CERT_PATH"' EXIT
+          fi
+          uv run python scripts/master_entry.py
       - name: Retain only sanitized aggregate result
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -76,6 +76,14 @@ These provider probes run only for an owner-initiated manual invocation when the
 
 The **21 October 2026** live workflow run [#39649523233](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/actions/runs/39649523233) passed GitHub checkout, SHA validation and dependency installation, but exited in `Execute approved operation` without publishing the underlying problem. The improved error-status reports were committed **after that run** and have not yet been exercised in a new live GitHub Actions run.
 
+### Verified discovery cooldown behavior (October 22, 2026)
+
+The real [Run #39661666331](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/actions/runs/39661666331) confirmed an intentionally persisted recovery deadline, not a database or SSL fault. Its sanitized report showed `persisted_status=deferred_resource_limit`, `discovery.reason=waiting_for_persisted_retry`, an earlier `recovery.reason=discovery_deadline`, and `recovery.accepted=2`. It had **zero verified deployments and zero sent mail**.
+
+The worldwide discovery target is now **one newly verified business per invocation**. Existing discovered businesses, checkpoint cursors, cooldowns and suppression data are preserved. Do not clear or manually bypass the stored `next_at` (the above historical example was `2026-10-21T20:16:35Z`, which is **22 October 2026 at 1:46 AM IST**).
+
+A recognized, safely persisted discovery cooldown without failed stages returns GitHub job success with a **notice**, but the run artifact truthfully says `status=deferred_retry_scheduled`, `exit_code=2` (the application CLI), and provides the recovery timestamp. This is **not** a successful deployment, verified new prospect email, or completed website generation. Unexpected crashes, missing checkpoint evidence, stage failures and permissions errors still fail the job. Scheduled follow-up remains subject to the owner-reviewed automation setting.
+
 ### What a failed or deferred run means
 
 Read the job summary and the sanitized `agent-result-...` artifact. Status `blocked_database_preflight` means database connection/schema/migration requirements remain unsatisfied. `deferred` means persistent capacity/source recovery conditions need attention. A successful provider dataset query is not proof of a verified business, deployment or sent email.

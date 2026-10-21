@@ -141,6 +141,10 @@ class Pipeline:
                 raise Blocked("Configured database storage cap reached")
 
     def discover(self, country=None):
+        # Do not let alternate CLI requests or old database queues widen the market.
+        if country and country != self.config.operating_country:
+            raise Blocked("United Kingdom (GB) is the only configured business market")
+        country = self.config.operating_country
         if self.config.discovery_provider == "open_data" and self.discovery is None:
             from website_agent.discovery_engine import DiscoveryEngine
 
@@ -308,6 +312,8 @@ class Pipeline:
         return site
 
     def initial_outreach(self, prospect, site):
+        if prospect.country != self.config.operating_country:
+            raise Blocked("Out-of-market prospects cannot receive automated outreach")
         if self.initial_sends_this_run >= 1:
             self.log("outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run")
             return
@@ -333,13 +339,18 @@ class Pipeline:
                 self.log("email_sent", prospect_id=prospect.id, gmail_id=message.gmail_id)
 
     def daily(self, country=None, scheduled=False):
+        if country and country != self.config.operating_country:
+            raise Blocked("United Kingdom (GB) is the only configured business market")
+        country = self.config.operating_country
         if scheduled and not self.scheduled_due():
             self.log("schedule_not_due")
             return
         self.database_capacity()
         # Existing drafts don't occupy the generation selection window.
         for prospect in self.session.scalars(
-            select(Prospect).where(Prospect.status == "draft_ready").order_by(Prospect.created_at).limit(1)
+            select(Prospect).where(
+                Prospect.country == country, Prospect.status == "draft_ready"
+            ).order_by(Prospect.created_at).limit(1)
         ).all():
             site = self.session.scalar(
                 select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
@@ -356,7 +367,10 @@ class Pipeline:
         # This is also important when the next provider retry is in the future.
         queued_business = self.session.scalar(
             select(Prospect.id)
-            .where(Prospect.status.in_(["discovered", "audited", "qualified"]))
+            .where(
+                Prospect.country == country,
+                Prospect.status.in_(["discovered", "audited", "qualified"]),
+            )
             .limit(1)
         )
         if queued_business is not None:
@@ -370,7 +384,9 @@ class Pipeline:
                 set_config(self.session, "discovery_checkpoint", {"date": schedule_date, "slot": schedule_slot})
         query = (
             select(Prospect)
-            .where(Prospect.status.in_(["discovered", "audited"]))
+            .where(
+                Prospect.country == country, Prospect.status.in_(["discovered", "audited"])
+            )
             .order_by(Prospect.created_at)
             .limit(self.config.limits.inspected)
         )
@@ -378,7 +394,7 @@ class Pipeline:
             self.step("audit", lambda p=prospect: self.audit(p), prospect)
         query = (
             select(Prospect)
-            .where(Prospect.status == "qualified")
+            .where(Prospect.country == country, Prospect.status == "qualified")
             .order_by(Prospect.created_at)
             .limit(self.config.limits.qualified)
         )

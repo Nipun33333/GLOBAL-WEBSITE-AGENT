@@ -1,51 +1,54 @@
-# One operations control panel
+# Global Website Agent — one-click operation
 
-Target workflow: `.github/workflows/global-website-agent.yml`, displayed as **Global Website Agent**. It replaces seven definitions and has no reusable-workflow dependency. Follow [the migration sequence](WORKFLOW_MIGRATION.md) before activation. Registration alone never enables production.
+The single GitHub Actions workflow is `.github/workflows/global-website-agent.yml`.
 
-## Manual operation
+## Manually launch
 
-Open Actions → Global Website Agent → Run workflow. Select `feature/free-overture-discovery` during review, or `main` only after the full implementation is merged. As repository owner, enter the full reviewed branch-tip SHA. Both quota and intended-database review checkboxes must be true based on actual review. All other approvals default false/empty. Git checkout, event SHA and reviewed SHA must match; changing the branch after dispatch fails closed. Re-run jobs is blocked; use a new reviewed dispatch.
+Open **Actions → Global Website Agent → Run workflow**, leave the branch on **main**, then press **Run workflow**. There are **no required input fields** and no country, mode, SHA, or approval phrase to paste.
 
-| Mode | Operation | Write approval | Additional independent permissions |
-|---|---|---|---|
-| diagnostics | Read-only database/schema and account metadata, OAuth refresh | None; leave empty | None; generation/deploy/drafts/sending forced off |
-| discover | Isolated US discovery with persistent prospects/checkpoints | `APPROVE_US_DISCOVERY_WRITES` | US local research window, database preflight; other integrations cannot mutate |
-| daily | Existing discovery/audit/qualification/preview/outreach stages | `APPROVE_DAILY_WRITES` | Generation, deployment, drafts and sending each require their own permission |
-| replies | Read Gmail, persist replies/suppression/owner events | `APPROVE_REPLIES_WRITES` | Generation only if model-based classification is desired; deterministic opt-outs work without it |
-| followups | Synchronize replies, process eligible followups | `APPROVE_FOLLOWUPS_WRITES` | Generation/drafts/sending separately; never deployment |
-| report | Persist run/policy state; publish aggregate seven-day counts | `APPROVE_REPORT_WRITES` | No model/deploy/mail mutation |
-| reconcile | Read Gmail to resolve uncertain sends; persist verified outcomes | `APPROVE_RECONCILE_WRITES` | No new send/draft |
-| live-smoke | Neutral page generation/deployment and owner-addressed draft | `APPROVE_LIVE_SMOKE_WRITES` | Generation, deployment AND drafts must all be approved; sending forced off |
+A manual launch performs one `daily` pipeline invocation. It selects an eligible configured country/city through persistent fair rotation; it does **not** search every country at the same instant. Business category and website checks remain required. One newly selected prospect may be audited and qualified per invocation, and at most one new initial email may be sent per invocation, subject to all recipient and sending gates. The app can still resume an existing verified draft from the queue.
 
-`country` filters discovery selection in daily mode. Blank means global rotation; it does not limit processing of already queued prospects, which retain their own local windows. Initial isolated discovery accepts US or blank only, preserving the established US write approval. Other operational modes reject country input rather than pretending they filter mailboxes/reports. Diagnostics report the US window.
+The live invocation is not a mock. It uses GitHub Actions Secrets stored in this repository's `agent-runtime` environment. A real database and correct migrations are required. Only the repository owner can manually dispatch; the checked-out Git SHA must match the workflow event. Credential values are never requested in the form or uploaded in artifacts.
 
-All application mutations first require read-only schema/checksum/capacity preflight. No mode applies migrations. Missing schema requires a separately reviewed backup/migration operation. `doctor --live` is not used for diagnostics because it writes model-check state.
+## Daily schedule (Asia/Kolkata)
 
-Generation uses `ENABLE_GENERATION`, deployment uses `ENABLE_DEPLOYMENT`, and drafts use `ENABLE_DRAFTS`; all default false outside explicitly authorized runs. Workflow inputs set only the permissions relevant to the selected mode. `request_sending` additionally requires repository/environment `ENABLE_SENDING=true` and all existing country, consent, history, audience, quota, identity and copy gates. Keep it false. `ENABLE_ROUTINE_REPLIES` is always false in this control panel; the owner handles customer conversations.
-
-## Scheduled operation — initially disabled
-
-| UTC cron | Mode |
+| India time | UTC schedule |
 |---|---|
-| `17 * * * *` | daily (existing daily checkpoint and local research/business windows) |
-| `7,37 * * * *` | replies |
-| `42 * * * *` | followups (includes reply synchronization as a safety prerequisite) |
-| `23 4 * * 1` | report |
+| 3:00 PM IST | `30 9 * * *` |
+| 9:00 PM IST | `30 15 * * *` |
 
-These are the exact original schedules, each once. Only a schedule event on main can use this route. The event's cron maps to one allowlisted command, never an entire daily pipeline for a report/reply tick. Discovery failures leave unrelated saved stages resumable.
+These are separate daily checkpoint slots. GitHub Actions scheduled starts may be delayed or skipped by the platform, so exact-to-the-minute execution is not guaranteed.
 
-After the owner separately approves activation, use repository Settings → Secrets and variables → Actions → Variables to set `UNIFIED_WORKFLOW_ENABLED=true`, `AUTOMATION_ENABLED=true`, reviewed `FREE_LIMITS_REVIEWED=true`, reviewed `DATABASE_REVIEWED=true`, and `SCHEDULED_MODES` to the explicitly approved comma-separated subset of `daily,replies,followups,report` (no spaces). Those variables constitute standing authorization for the named modes' database writes, not other side effects. A review must be renewed when destination or quota assumptions change.
+Scheduled execution remains **disabled until the owner reviews quotas and the destination database**. To activate it *once* under repository **Settings → Secrets and variables → Actions → Variables**, review and set:
+- `AUTOMATION_ENABLED=true`
+- `UNIFIED_WORKFLOW_ENABLED=true`
+- `FREE_LIMITS_REVIEWED=true` only after actually checking available included Actions/provider usage
+- `DATABASE_REVIEWED=true` only after confirming the dedicated Supabase project, connection, backups and quota
+- `SCHEDULED_MODES=daily` (optional; daily is the only scheduled mode)
 
-`ALLOW_GENERATION`, `ALLOW_DEPLOYMENT`, `ALLOW_DRAFTS`, and `ALLOW_SENDING` independently grant relevant scheduled capabilities; absent values deny them. Sending still additionally requires `ENABLE_SENDING`. Never enable both old and new schedules during migration. No variable has been enabled by this implementation. Manual modes do not require scheduled automation to be enabled.
+These are one-time repository settings, not repeated Run workflow inputs. Do **not** set the review flags without performing the reviews.
 
-## Execution, resources and recovery
+## Capability safety and costs
 
-All modes use `agent-runtime`, `contents: read`, pinned action commits and concurrency group `global-website-agent-runtime` with cancellation of active runs disabled. Mutating CLI operations retain the PostgreSQL session advisory lock, run IDs, unique constraints and durable state machines. GitHub can replace a pending concurrency job; later ticks resume persistent work, so exact-minute execution is not guaranteed. Do not clear history/checkpoints to retry.
+The owner may authorize independent capabilities through existing repository variables **only after verifying account usage and source rights**:
 
-Only the runtime step receives existing secrets, after credential-free preflight. Dependencies use `uv sync --frozen --no-dev`; Chromium binaries are installed only for daily/live-smoke modes that can verify previews. Runtime packages still include common import dependencies; this is not a claim of a fully split lightweight wheel. The job is bounded to 45 minutes, the operational child to 40 minutes, and isolated discovery retains its unchanged 300-second internal/420-second wrapper budgets. Quota review must therefore reserve up to 45 included Linux minutes plus storage headroom per master run.
+- `ALLOW_GENERATION=true` requires valid and current Gemini model capabilities, model pricing, and explicit free/authorized usage records.
+- `ALLOW_DEPLOYMENT=true` requires included Netlify capacity and valid site permissions.
+- `ALLOW_DRAFTS=true` permits creating Gmail drafts and requires working OAuth credentials.
+- `ALLOW_SENDING=true` **and** `ENABLE_SENDING=true` are both required even to consider real sends.
 
-Only `artifacts/live-verification.json` and `.md` are uploaded, for one day. Diagnostics contain allowlisted metadata and discovery counters; other modes include exit status and aggregate run/site/message/sent/draft/followup/owner-notification/failure/deferral counts and tracked Gemini cost for one day (seven for report). Historical detailed reports with URLs/thread IDs are not uploaded. Owner conversation details remain in the restricted database/Gmail; the control panel does not send owner notification emails. Timeout means progress may already exist: inspect saved state before retrying. Exit 2 means deferred/blocked; exit 1 means failure; neither is reported as success.
+These flags alone **cannot** bypass the existing country policy, legal-basis evidence, observed business mailbox, unsubscribe suppression, Base44 audience partition, review of email copy, recipient hours, Gmail identity or daily sending limits. Every country policy remains disabled until independently reviewed. Never mark a country or contact eligible without actual permission/evidence.
 
-## Safe first dispatch
+Automatic follow-up sends and automatic customer replies are disabled. Customer conversations remain owner-handled.
 
-After registration and review, select mode `diagnostics`, current full feature SHA, both genuinely reviewed checkboxes, no write approval and no capability permissions. Inspect the summary/artifact. This consumes included runner/provider resources but does not generate, deploy, draft, send, migrate or write prospect records. Do not run `daily` as a substitute. Discovery requires a later separate explicit US write approval.
+Current Gemini `model_prices` and `usage_authorizations` are empty; AI generation will defer safely until actual current model eligibility and pricing have been reviewed. Overture discovery does not need `DISCOVERY_API_KEY`. OSM remains unconfigured until license and dataset obligations are satisfied.
+
+### What a failed or deferred run means
+
+Read the job summary and the sanitized `agent-result-...` artifact. Status `blocked_database_preflight` means database connection/schema/migration requirements remain unsatisfied. `deferred` means persistent capacity/source recovery conditions need attention. A successful provider dataset query is not proof of a verified business, deployment or sent email.
+
+Rerunning an old failed job is deliberately blocked; launch a **new** manual run when appropriate. Do not clear database checkpoints, history, suppressed contacts or ambiguous send/deploy records to force success.
+
+### Important operational limitations
+
+The workflow and application code can now start through one button. **A functioning end-to-end real send is not yet verified.** Real Supabase/Gemini/Netlify/Gmail tests and source/recipient eligibility must succeed independently; GitHub Secrets cannot be read back or assumed valid merely because their names exist. This project cannot guarantee a qualifying business or a completed email at every execution.

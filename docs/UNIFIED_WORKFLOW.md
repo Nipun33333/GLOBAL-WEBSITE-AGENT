@@ -74,6 +74,14 @@ The worldwide discovery target is now **one newly verified business per invocati
 
 A recognized, safely persisted discovery cooldown without failed stages returns GitHub job success with a **notice**, but the run artifact truthfully says `status=deferred_retry_scheduled`, `exit_code=2` (the application CLI), and provides the recovery timestamp. This is **not** a successful deployment, verified new prospect email, or completed website generation. Unexpected crashes, missing checkpoint evidence, stage failures and permissions errors still fail the job. Scheduled follow-up remains subject to the owner-reviewed automation setting.
 
+### What a green run with zero emails means
+
+An actual [owner run on 21 October 2026](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/actions/runs/39670203638) reported `sending_enabled=true` and one independently verified discovery candidate, but `sites=0`, `messages=0`, `drafts_created=0`, and `sent=0`. Technical sending enablement was **not** the missing step: no preview or Gmail draft existed to send. Actual diagnosis must distinguish missing audit qualification from verified previews with non-eligible recipients.
+
+A fresh run now audits **up to 3** already-verified business candidates to select **at most 1** qualified demo (before this change it only checked 1). Safe run reports also include `run_diagnostics.stage_event_counts` for that exact run (e.g. `inspected`, `qualified`, `strong_website_disqualified`, `website_generated`, `email_drafted`) and aggregate `run_diagnostics.business_funnel` grouped by prospect status. These counts have no customer names, mailbox addresses, or website URLs. If all candidates have sufficiently good websites, unverifiable local-business evidence or no observed business mailbox, a correct run may generate no demo or send nothing rather than fabricate a lead.
+
+The project still has **11 disabled country sending policies** and lacks verified Base44 contact-history/exclusive-audience readiness. These are independently blocking legal/recipient checks even if Gemini, Netlify, and Gmail work technically. They are not automatically enabled or marked approved; obtain genuine country-specific compliance and audience evidence before contacting people.
+
 ### What a failed or deferred run means
 
 Read the job summary and the sanitized `agent-result-...` artifact. Status `blocked_database_preflight` means database connection/schema/migration requirements remain unsatisfied. `deferred` means persistent capacity/source recovery conditions need attention. A successful provider dataset query is not proof of a verified business, deployment or sent email.

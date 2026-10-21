@@ -220,7 +220,7 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert master.execute(selected) == 2
     result = published.call_args.args[0]
     assert result["status"] == "blocked_database_preflight"
-    assert result["database"] == {"status": "failed_or_unavailable"}
+    assert result["database"] == {"status": "connection_tls_or_configuration_unavailable", "discovery_ready": False}
     assert secret not in json.dumps(result)
 
 

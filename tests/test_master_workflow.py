@@ -123,6 +123,22 @@ def test_readonly_and_discover_cannot_inherit_side_effect_permissions():
         assert not any(result[k] for k in ("generation", "deployment", "drafts", "sending"))
 
 
+def test_owner_manual_workflow_enables_sending_but_preserves_policy_checks():
+    from website_agent.compliance import eligible
+
+    workflow = yaml.load(
+        Path(".github/workflows/global-website-agent.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    environment = workflow["jobs"]["agent"]["env"]
+    for name in ("ALLOW_SENDING", "ENABLE_SENDING"):
+        expression = environment[name]
+        assert "github.event_name == 'workflow_dispatch'" in expression
+        assert f"vars.{name} || 'false'" in expression
+    assert "github.actor == github.repository_owner" in workflow["jobs"]["agent"]["if"]
+    assert callable(eligible)
+
+
 def test_sending_requires_both_independent_controls():
     e = env(AGENT_MODE="daily", WRITE_APPROVAL="APPROVE_DAILY_WRITES", ALLOW_SENDING="true")
     assert not master.plan(e, SHA)["sending"]

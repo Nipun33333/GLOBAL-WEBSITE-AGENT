@@ -135,7 +135,7 @@ def test_single_definition_crons_dependencies_and_secret_boundary():
     w = yaml.load((root / "global-website-agent.yml").read_text(), Loader=yaml.BaseLoader)
     crons = [x["cron"] for x in w["on"]["schedule"]]
     assert set(crons) == set(master.CRONS) and len(crons) == len(set(crons))
-    assert len(w["on"]["workflow_dispatch"]["inputs"]) == 10
+    assert w["on"]["workflow_dispatch"] == ""  # No owner input form.
     job = w["jobs"]["agent"]
     assert job["concurrency"] == {"group": "global-website-agent-runtime", "cancel-in-progress": "false"}
     assert "UNIFIED_WORKFLOW_ENABLED" in job["if"]
@@ -149,6 +149,39 @@ def test_single_definition_crons_dependencies_and_secret_boundary():
         assert "migrate" not in s.get("run", "")
     assert any(s.get("if") == "steps.preflight.outputs.browser == 'true'" for s in steps)
     assert steps[0]["with"]["persist-credentials"] == "false"
+
+
+def test_one_click_launch_needs_no_user_inputs_and_cannot_cross_branch():
+    one_click = env(
+        ONE_CLICK_MODE="true",
+        GITHUB_REF="refs/heads/main",
+        AGENT_MODE="",
+        AGENT_COUNTRY="US",
+        REVIEWED_COMMIT="",
+        FREE_LIMITS_REVIEWED="false",
+        DATABASE_REVIEWED="false",
+        WRITE_APPROVAL="",
+    )
+    selected = master.plan(one_click, SHA)
+    assert selected["mode"] == "daily"
+    assert selected["country"] == ""
+    assert not selected["scheduled"]
+    assert not selected["sending"]
+    for change in (
+        {"GITHUB_REF": "refs/heads/feature/free-overture-discovery"},
+        {"GITHUB_ACTOR": "other"},
+        {"GITHUB_SHA": "b" * 40},
+    ):
+        with pytest.raises(ValueError):
+            master.plan({**one_click, **change}, SHA)
+
+
+def test_one_click_sends_only_when_both_gates_are_explicitly_set():
+    one_click = env(ONE_CLICK_MODE="true", GITHUB_REF="refs/heads/main")
+    assert not master.plan({**one_click, "ALLOW_SENDING": "true"}, SHA)["sending"]
+    assert master.plan(
+        {**one_click, "ALLOW_SENDING": "true", "ENABLE_SENDING": "true"}, SHA
+    )["sending"]
 
 
 def test_runtime_diagnostics_forces_flags_false(monkeypatch):

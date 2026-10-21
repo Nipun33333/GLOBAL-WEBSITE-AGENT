@@ -134,6 +134,21 @@ def test_rotation_fair_and_no_repeat(session, config):
     assert len(session.scalars(select(LocationQueue)).all()) == len(eligible_locations) * 12
 
 
+def test_one_initial_send_per_run_guard_does_not_call_integrations(session, settings, config, prospect, site):
+    from unittest.mock import Mock
+
+    from website_agent.pipeline import Pipeline
+
+    pipe = Pipeline(session, settings, config)
+    pipe.initial_sends_this_run = 1
+    pipe.log = Mock()
+    pipe.initial_outreach(prospect, site)
+    pipe.log.assert_called_once_with(
+        "outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run"
+    )
+    assert pipe._gmail is None and pipe._ai is None and pipe._hosting is None
+
+
 def test_single_opportunity_configuration_and_two_ist_slots():
     from pathlib import Path
 

@@ -1,12 +1,12 @@
-# Global Website Agent — one-click operation
+# UK Website Agent — one-click operation
 
 The single GitHub Actions workflow is `.github/workflows/global-website-agent.yml`.
 
 ## Manually launch
 
-Open **Actions → Global Website Agent → Run workflow**, leave the branch on **main**, then press **Run workflow**. There are **no required input fields** and no country, mode, SHA, or approval phrase to paste.
+Open **Actions → UK Website Agent → Run workflow**, leave the branch on **main**, then press **Run workflow**. There are **no required input fields** and no country, mode, SHA, or approval phrase to paste.
 
-A manual launch performs one `daily` pipeline invocation. It selects an eligible configured country/city through persistent fair rotation; it does **not** search every country at the same instant. Business category and website checks remain required. One newly selected prospect may be audited and qualified per invocation, and at most one new initial email may be sent per invocation, subject to all recipient and sending gates. The app can still resume an existing verified draft from the queue.
+A manual launch performs one `daily` pipeline invocation. It selects a **UK city** through persistent fair rotation; **no country outside United Kingdom (GB) is searched or processed**. Business category and website checks remain required. One newly selected prospect may be audited and qualified per invocation, and at most one new initial email may be sent per invocation, subject to all recipient and sending gates. The app can still resume an existing verified draft from the queue.
 
 The live invocation is not a mock. It uses GitHub Actions Secrets stored in this repository's `agent-runtime` environment. A real database and correct migrations are required. Only the repository owner can manually dispatch; the checked-out Git SHA must match the workflow event. Credential values are never requested in the form or uploaded in artifacts.
 
@@ -21,13 +21,13 @@ These are separate daily checkpoint slots. GitHub Actions scheduled starts may b
 
 **Owner-authorized automation is now enabled in the workflow on main.** Both UTC cron entries launch the normal `daily` pipeline automatically. No GitHub Actions variables, repeated approval forms, or false billing/database review attestations are required for scheduled dispatch. GitHub Actions may delay or skip a scheduled run, and included Actions, database, Gemini and Netlify capacity are finite. The code still enforces bounded daily model requests, one new business per invocation, two daily previews, up to two initial emails per day, Free-Tier-only Gemini fallback, and safe persisted retries.
 
-To stop automatic work, use **GitHub → Actions → Global Website Agent → ⋯ → Disable workflow**. This does not erase checkpoints or contact suppression records. Automatic customer replies and follow-up emails are intentionally disabled, since the owner handles customer responses.
+To stop automatic work, use **GitHub → Actions → UK Website Agent → ⋯ → Disable workflow**. This does not erase checkpoints or contact suppression records. Automatic customer replies and follow-up emails are intentionally disabled, since the owner handles customer responses.
 
 ## Capability safety and costs
 
 **Production technical capabilities are enabled for both owner manual and twice-daily scheduled runs:** Gemini generation, Netlify draft deployment, Gmail draft preparation, and initial email sending. No paid Gemini fallback was enabled. The agent uses existing GitHub Secrets and never uploads credential or recipient content to its public run artifact.
 
-**These capabilities do not establish that any prospect is legally eligible for cold email.** Sending remains fail-closed until a real verified business mailbox, independently approved jurisdiction rule, current case-specific legal basis, durable suppressions, fresh Gmail Sent/Inbox prior-contact checks, approved copy and a verified Netlify demo all exist. All 11 country rules are still disabled, so recipient emails are currently blocked even though the technical switches are on. Do not invent compliance evidence or overwrite opt-outs to force a send. Existing or pending drafts may still be generated, but this is not evidence of a sent email. Gmail OAuth may expire and provider quotas may be exhausted.
+**These capabilities do not establish that any prospect is legally eligible for cold email.** Sending remains fail-closed until a real verified business mailbox, independently approved jurisdiction rule, current case-specific legal basis, durable suppressions, fresh Gmail Sent/Inbox prior-contact checks, approved copy and a verified Netlify demo all exist. The only configured **GB country rule** is still disabled, so recipient emails are currently blocked even though the technical switches are on. Do not invent compliance evidence or overwrite opt-outs to force a send. Existing or pending drafts may still be generated, but this is not evidence of a sent email. Gmail OAuth may expire and provider quotas may be exhausted.
 
 The reviewed operating limits are in `config/settings.yml`: one discovery target/inspection/qualified business per run; at most two previews and two initial outreach messages per day; maximum 12 AI requests per day; no automatic followups, no routine replies. Control exceptional costs by monitoring GitHub Actions, Supabase, Gemini and Netlify allowances, or temporarily disabling the workflow.
 
@@ -70,7 +70,7 @@ The **21 October 2026** live workflow run [#39649523233](https://github.com/Nipu
 
 The real [Run #39661666331](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/actions/runs/39661666331) confirmed an intentionally persisted recovery deadline, not a database or SSL fault. Its sanitized report showed `persisted_status=deferred_resource_limit`, `discovery.reason=waiting_for_persisted_retry`, an earlier `recovery.reason=discovery_deadline`, and `recovery.accepted=2`. It had **zero verified deployments and zero sent mail**.
 
-The worldwide discovery target is now **one newly verified business per invocation**. Existing discovered businesses, checkpoint cursors, cooldowns and suppression data are preserved. Do not clear or manually bypass the stored `next_at` (the above historical example was `2026-10-21T20:16:35Z`, which is **22 October 2026 at 1:46 AM IST**).
+The UK-only discovery target is **one newly verified GB business per invocation**. Existing UK candidates and suppression records are preserved; the old `discovery_task:worldwide` checkpoint is archived in place and no longer used. The active discovery journal is `discovery_task:GB`. Pre-existing non-UK prospects are retained read-only and excluded from processing. Do not clear or manually bypass the stored `next_at` (the above historical example was `2026-10-21T20:16:35Z`, which is **22 October 2026 at 1:46 AM IST**).
 
 A recognized, safely persisted discovery cooldown without failed stages returns GitHub job success with a **notice**, but the run artifact truthfully says `status=deferred_retry_scheduled`, `exit_code=2` (the application CLI), and provides the recovery timestamp. This is **not** a successful deployment, verified new prospect email, or completed website generation. Unexpected crashes, missing checkpoint evidence, stage failures and permissions errors still fail the job. Scheduled follow-up remains subject to the owner-reviewed automation setting.
 

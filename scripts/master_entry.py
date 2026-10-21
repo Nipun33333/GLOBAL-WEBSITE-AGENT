@@ -109,9 +109,25 @@ def execute(selected):
     config = settings.config()
     if selected["country"] and selected["country"] not in {loc.country for loc in config.locations}:
         raise ValueError("Country is not configured")
-    # Convert database/TLS/provider exceptions into a sanitized actionable result.
-    # Never include connection strings, credentials, or driver exception messages.
-    check = live.run_check(lambda: live.database_check(settings, config))
+    # Preserve useful provider-neutral diagnostics without exposing URLs or SQL errors.
+    if not settings.database_url:
+        check = {"status": "missing_database_url", "discovery_ready": False}
+    else:
+        try:
+            check = live.database_check(settings, config)
+        except Exception as exc:
+            # PostgreSQL SQLSTATE conveys a safe class of failure, not secret values.
+            original = getattr(exc, "orig", None)
+            state = getattr(original, "sqlstate", None)
+            if state in {"28P01", "28000"}:
+                reason = "authentication_rejected"
+            elif state in {"3D000", "42P01", "42703"}:
+                reason = "database_or_schema_missing"
+            elif state in {"53300", "53100", "53200"}:
+                reason = "database_capacity_unavailable"
+            else:
+                reason = "connection_tls_or_configuration_unavailable"
+            check = {"status": reason, "discovery_ready": False}
     if not check.get("discovery_ready"):
         live.publish({"status": "blocked_database_preflight", "mode": mode, "database": check})
         return 2

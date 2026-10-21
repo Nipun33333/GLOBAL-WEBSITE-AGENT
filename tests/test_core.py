@@ -183,6 +183,31 @@ def test_owner_reviewed_free_gemini_models_are_bounded(settings):
         }
 
 
+def test_production_market_is_united_kingdom_only(settings):
+    from pathlib import Path
+    import yaml
+
+    data = yaml.safe_load(Path("config/settings.yml").read_text(encoding="utf-8"))
+    config = settings.config()
+    assert data["operating_country"] == "GB"
+    assert config.operating_country == "GB"
+    assert len(config.locations) == 10
+    assert {loc.country for loc in config.locations} == {"GB"}
+    assert {"London", "Manchester", "Glasgow", "Cardiff", "Belfast"}.issubset(
+        {loc.city for loc in config.locations}
+    )
+    from website_agent.settings import Config
+    invalid = {**data, "operating_country": "US"}
+    with pytest.raises(ValidationError):
+        Config.model_validate(invalid)
+    invalid = {**data, "locations": [
+        *data["locations"],
+        {"country": "US", "city": "New York", "timezone": "America/New_York", "language": "en"},
+    ]}
+    with pytest.raises(ValidationError):
+        Config.model_validate(invalid)
+
+
 def test_single_opportunity_configuration_and_two_ist_slots():
     from pathlib import Path
 

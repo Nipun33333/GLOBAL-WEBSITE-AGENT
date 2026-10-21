@@ -12,17 +12,13 @@ Previews have no forms, payments, tracking, external fonts, or third-party image
 
 Netlify retention and account limits can remove old deploys; configure adequate retention for active offers and check your plan. The agent re-verifies previews before every send. The application cannot guarantee that a URL will remain available forever. It does not create sites, upgrade plans, enable billing, or purchase capacity. Reference: [Netlify deploy API](https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/).
 
-## Schedules
+## UK-only schedules
 
-The single Global Website Agent workflow retains UTC schedules `17 * * * *` (daily), `7,37 * * * *` (replies), `42 * * * *` (followups), and `23 4 * * 1` (weekly report). Application checkpoints and local country windows remain authoritative. Both `AUTOMATION_ENABLED` and `UNIFIED_WORKFLOW_ENABLED` must be explicitly enabled after [migration](docs/WORKFLOW_MIGRATION.md); all schedule modes and side effects also require separate approval variables. They remain disabled.
+The **UK Website Agent** runs the single workflow twice daily on `main`, at **15:00 and 21:00 Asia/Kolkata** (UTC crons `30 9 * * *` and `30 15 * * *`). Research/local-contact windows use `Europe/London` and GB holiday calendars. GitHub scheduled starts may be delayed or skipped. Manual one-click runs have no input fields.
 
-GitHub can delay/drop events or replace a pending concurrency job. Persistent queues/checkpoints resume on later ticks. One shared concurrency group plus the PostgreSQL advisory lock serializes mutations; no exact-minute guarantee is made.
+Both scheduled and manual invocations restrict business discovery, the persisted queue, audit, generation, draft processing and initial outreach to the United Kingdom (`GB`). Old non-UK prospects and the old worldwide discovery checkpoint remain stored without deletion but are never processed by this workflow. Local contact legal requirements remain independent and must be reviewed; the sole `GB` policy is still disabled.
 
-## Manual runs
-
-Open **Actions → Global Website Agent → Run workflow**. Follow [the mode/approval table](docs/UNIFIED_WORKFLOW.md), review the exact SHA and quotas/database first, then select the intended operation. Start with diagnostics. Country filtering applies to discovery selection in daily/discover only; existing queued prospects retain individual country windows.
-
-The workflow uses agent-runtime, installs locked runtime dependencies, installs Chromium only for daily/live-smoke, and uploads aggregate allowlisted reports for one day. It never applies migrations. Generation, deployment, Gmail drafts and sending have independent permissions; all default disabled. Routine customer replies remain disabled and owner-controlled.
+The workflow uses existing `agent-runtime` GitHub Secrets, bounded AI/Netlify limits, PostgreSQL state and a single concurrency lock. Customer replies and followups remain owner-managed, not automated.
 
 ## Standalone Gmail history and legally reviewed outreach
 
@@ -39,7 +35,7 @@ uv run website-agent validate-history --file private/validation.json
 
 Never upload private contact exports to GitHub or public Actions artifacts. These imports do not certify sending permission.
 
-A qualified reviewer must confirm the current legal requirements for each country and populate `config/country-policies.yml` with accurately reviewed rules. All eleven country templates remain disabled. Record actual per-prospect contact basis, evidence and expiry in `config/eligibility.example.json`, then use:
+A qualified reviewer must confirm current United Kingdom law and populate the sole `GB` entry in `config/country-policies.yml` with accurately reviewed rules. This UK policy template remains disabled until reviewed. Record actual per-prospect contact basis, evidence and expiry in `config/eligibility.example.json`, then use:
 
 ```bash
 uv run website-agent import-eligibility --file private/eligibility.json

@@ -228,6 +228,35 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert secret not in json.dumps(result)
 
 
+@pytest.mark.parametrize(
+    "private_error,expected",
+    [
+        ("SSL: certificate verify failed for user=private", "tls_certificate_verification_failed"),
+        ("could not translate host name: private.example", "database_dns_resolution_failed"),
+        ("Network is unreachable: private host", "database_network_or_ipv6_unreachable"),
+        ("connection timed out: private host", "database_connection_timed_out"),
+        ("connection refused: private host", "database_connection_refused"),
+        ("password authentication failed for user private", "authentication_rejected"),
+        ("Tenant or user not found: private", "pooler_tenant_or_user_unavailable"),
+        ("secret but unknown error", "connection_tls_or_configuration_unavailable"),
+    ],
+)
+def test_database_error_classes_never_echo_private_values(private_error, expected):
+    classified = master.classify_database_error(RuntimeError(private_error))
+    assert classified == expected
+    assert "private" not in classified
+
+
+def test_database_sqlstate_is_not_echoed():
+    for sqlstate, reason in [
+        ("28P01", "authentication_rejected"),
+        ("3D000", "database_or_schema_missing"),
+        ("53300", "database_capacity_unavailable"),
+    ]:
+        failure = SimpleNamespace(orig=SimpleNamespace(sqlstate=sqlstate))
+        assert master.classify_database_error(failure) == reason
+
+
 def test_one_click_invalid_settings_report_without_secrets(monkeypatch):
     from website_agent import settings as settings_module
 

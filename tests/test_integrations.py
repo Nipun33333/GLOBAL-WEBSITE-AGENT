@@ -310,6 +310,45 @@ def test_queued_verified_business_is_processed_before_another_discovery(
     assert pipe.run.summary["discovery_skipped"] == 1
 
 
+def test_run_checks_three_candidates_and_selects_only_one_qualified_demo(
+    session, settings, config, fakes
+):
+    config.limits.inspected = 3
+    config.limits.qualified = 1
+    candidates = []
+    for i in range(3):
+        prospect = Prospect(
+            name=f"Business {i}",
+            domain=f"business{i}.example",
+            url=f"https://business{i}.example/",
+            country="US",
+            city="New York",
+            timezone="America/New_York",
+            subdivision="NY",
+            language="en",
+            niche="salons",
+            status="discovered",
+        )
+        session.add(prospect)
+        candidates.append(prospect)
+    session.commit()
+
+    pipe = Pipeline(session, settings, config, ai=fakes.ai, web=fakes.web)
+    pipe.discover = Mock(side_effect=AssertionError("No new source scan for queued leads"))
+
+    def audit_one(prospect):
+        prospect.status = "qualified" if prospect.id == candidates[2].id else "disqualified"
+        session.commit()
+
+    pipe.audit = Mock(side_effect=audit_one)
+    pipe.generate = Mock(return_value=None)  # Only select a demo, no provider write.
+    assert pipe.start("daily", "three-candidates")
+    pipe.daily()
+    pipe.discover.assert_not_called()
+    assert pipe.audit.call_count == 3
+    pipe.generate.assert_called_once_with(candidates[2])
+
+
 def test_discovery_continues_when_no_business_backlog(
     session, settings, config, fakes
 ):

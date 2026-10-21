@@ -12,10 +12,8 @@ import sys
 from pathlib import Path
 
 CRONS = {
-    "17 * * * *": "daily",
-    "7,37 * * * *": "replies",
-    "42 * * * *": "followups",
-    "23 4 * * 1": "report",
+    "30 9 * * *": "daily",   # 15:00 IST
+    "30 15 * * *": "daily",  # 21:00 IST
 }
 MODES = {"diagnostics", "discover", "daily", "replies", "followups", "report", "reconcile", "live-smoke"}
 CAPABILITIES = {

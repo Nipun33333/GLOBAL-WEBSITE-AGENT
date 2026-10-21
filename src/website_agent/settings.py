@@ -158,8 +158,16 @@ class GeminiPolicy(BaseModel):
 
 class Config(BaseModel):
     limits: Limits = Field(default_factory=Limits)
-    locations: list[Location]
+    # Operating scope is explicitly UK-only; GB is the United Kingdom ISO code.
+    operating_country: Literal["GB"] = "GB"
+    locations: list[Location] = Field(min_length=1)
     niches: list[str]
+
+    @model_validator(mode="after")
+    def enforce_uk_only_locations(self):
+        if any(location.country != "GB" for location in self.locations):
+            raise ValueError("Production country scope is United Kingdom (GB) only")
+        return self
     search_template: str = "{niche} {city} {country} official website"
     schedule_timezone: str = "UTC"
     schedule_hour: int = Field(3, ge=0, le=23)

@@ -45,17 +45,10 @@ def eligible(session, prospect, settings, at, *, routine=False):
         reasons.append("prospect_stopped")
     if prospect.replied_at and not routine:
         reasons.append("reply_received")
-    readiness = get_config(session, "production_readiness")
-    if (
-        not readiness.get("validated")
-        or not readiness.get("import_digest")
-        or not readiness.get("base44_audience_exclusion_reference")
-    ):
-        reasons.append("history_and_base44_validation_required")
-    if prospect.eligibility.get("base44_excluded") is not True or not prospect.eligibility.get(
-        "audience_evidence"
-    ):
-        reasons.append("audience_not_exclusively_assigned")
+    # The agent is independent: historical Gmail recipients and suppressions
+    # are the anti-duplicate source; no other-platform audience approval exists.
+    if not get_config(session, "gmail_history_import").get("completed"):
+        reasons.append("gmail_sent_history_not_imported")
     row = session.scalar(select(CountryPolicy).where(CountryPolicy.country == prospect.country))
     policy = Policy.model_validate(row.policy if row else {})
     try:

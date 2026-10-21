@@ -8,7 +8,7 @@ limits:
   followups_daily: 0
   max_followups: 0
   threshold: 55
-  ai_requests_daily: 30
+  ai_requests_daily: 12  # Conservative below the 20-RPD primary Flash allowance
   ai_budget_usd: 1.0
   database_max_mb: 400
 schedule_timezone: Asia/Kolkata
@@ -44,7 +44,13 @@ gemini:
   cooldown_seconds: 900
   max_output_tokens: 8192
   fallback_models: [gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite, gemini-2.5-flash, gemini-2.5-flash-lite]
-  usage_authorizations: {}  # Owner-reviewed tier, reference and expiry for each exact model.
+  # Owner confirmed nonzero RPM, TPM and RPD quotas for these exact Free-tier models.
+  # Time-bounded review: recheck account status and pricing after expiry.
+  usage_authorizations:
+    gemini-3.8-flash: {tier: free, review_reference: 'Owner-supplied Default Gemini Project Free Tier rate limits 2026-10-22; https://ai.google.dev/gemini-api/docs/pricing', expires_on: '2026-11-21'}
+    gemini-3.6-flash: {tier: free, review_reference: 'Owner-supplied Default Gemini Project Free Tier rate limits 2026-10-22; https://ai.google.dev/gemini-api/docs/pricing', expires_on: '2026-11-21'}
+    gemini-3.5-flash-lite: {tier: free, review_reference: 'Owner-supplied Default Gemini Project Free Tier rate limits 2026-10-22; https://ai.google.dev/gemini-api/docs/pricing', expires_on: '2026-11-21'}
+    gemini-3.1-flash-lite: {tier: free, review_reference: 'Owner-supplied Default Gemini Project Free Tier rate limits 2026-10-22; https://ai.google.dev/gemini-api/docs/pricing', expires_on: '2026-11-21'}
 
 niches:
   - salons

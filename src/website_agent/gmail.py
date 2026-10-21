@@ -125,6 +125,8 @@ class Gmail:
         raise Blocked("Gmail pagination limit reached; scan is incomplete")
 
     def draft(self, raw, thread_id=None):
+        if not self.settings.enable_drafts:
+            raise Blocked("Gmail draft creation is disabled")
         message = {"raw": raw}
         if thread_id:
             message["threadId"] = thread_id
@@ -137,6 +139,9 @@ class Gmail:
         return result
 
     def send(self, raw, thread_id=None, draft_id=None):
+        # Defense in depth: callers cannot bypass the global send-disable gate.
+        if not self.settings.enable_sending:
+            raise Blocked("Gmail sending is disabled")
         body = {"raw": raw}
         if thread_id:
             body["threadId"] = thread_id

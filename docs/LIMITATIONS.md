@@ -1,10 +1,13 @@
 # Known limitations and production blockers
 
+**Current unified-workflow update:** PR #8 registers Global Website Agent; PR #6 contains the single-workflow implementation and remains unmerged. All automation/sending controls remain disabled. Gemini has bounded exact-model fallback with empty account authorization/pricing maps, so live generation remains blocked. See [current readiness](FINAL_READINESS.md), [control panel](UNIFIED_WORKFLOW.md), [Gemini policy](GEMINI_FALLBACK.md) and [migration sequence](WORKFLOW_MIGRATION.md). Older workflow inventories and validation counts below are historical, not current activation instructions.
+
+
 This is an implemented application, not a claim of verified production operation.
 
 ## Requires external setup
 
-- No database, Gemini, discovery, Netlify or Gmail credentials were available during implementation. Live discovery, model access/generation, deployment, OAuth refresh, Gmail drafts and production sends cannot be reported as passed.
+- The 12 required GitHub Secret names are present, but live diagnostics have not been dispatched. Quota/destination confirmation and explicit owner approval remain outstanding; no local credential copy is required. Credentialed discovery/persistence, model access/generation, deployment, OAuth refresh and Gmail drafts cannot be reported as passed. Real public Overture range queries have now returned source candidates; see [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md). Candidates have not been verified or admitted.
 - No country policy has been legally verified for this sender/audience. Every shipped country is draft-only. A reviewer must determine applicable law, contact types, consent or other basis, identification/unsubscribe requirements, retention and evidence validity. Configuration templates are not legal advice or blanket permission.
 - Existing Base44 history and opt-outs must be exported by the owner, imported, matched against Gmail, and validated. An exclusive audience assignment is essential while Base44 continues running. This application cannot prevent Base44 from racing it without cooperation from the existing system/owner.
 - Provider storage and outreach-use rights, Gemini prices/model access, Gmail consent publishing, hosting retention and service quotas need account-specific checks. Free plans may be insufficient. No additional resources are bought automatically.
@@ -37,3 +40,11 @@ This is an implemented application, not a claim of verified production operation
 - [ ] Actions secrets/variables configured; scheduled and manual draft-only runs pass.
 - [ ] Provider account limits, storage/retention, notification settings and billing alerts reviewed.
 - [ ] Only then enable sending, with both environment and invocation gates.
+
+## Zero-key discovery
+
+The default discovery path does not require a search API key. OSM fallback remains permission-gated. Bounded scans can legitimately defer with no results; strict name/locality/own-domain contact verification rejects incomplete records. Local caches do not survive fresh Actions runners, but PostgreSQL checkpoints and pending candidates do. Detailed limits and recovery procedures are in [DISCOVERY.md](DISCOVERY.md). Historical verification records above do not claim live verification of the new discovery path.
+
+STAC is now a common metadata dependency for AWS and Azure. A catalog outage can block both mirrors; only an applicable verified query cache or separately configured lawful source can help. An incomplete/paged catalog fails closed and requires reader support rather than guessing omitted files. At the inspected release, 16 item documents suffice; future index growth consumes the same request/time/byte budget. Exact locality and own-domain contact requirements remain conservative and can reject genuine businesses. Only the measured New York dataset subset was tested live; other configured countries and actual outage-triggered failover are not live-verified. A new bounded Azure probe now confirms full candidate decoding for the same New York subset as AWS. Whole-row-group column decoding and resumed row groups can re-read data; cursors prevent repeated admissions, not all repeated transfer. Website DNS/read calls have bounded transport timeouts but no kernel-enforced wall-clock deadline. No resource bound guarantees 30 prospects.
+
+Current evidence and the single consolidated owner-action checklist: [FINAL_READINESS.md](FINAL_READINESS.md). New schema reflection is tested with real SQLite inspection and drift fixtures; it is not current Supabase/PostgreSQL proof. Database identity still depends on owner confirmation of the stored connection destination; a successful connection/checksum cannot distinguish two identically provisioned databases. TLS relies on the provided CA bundle and can fail closed when a provider requires a different trusted CA.

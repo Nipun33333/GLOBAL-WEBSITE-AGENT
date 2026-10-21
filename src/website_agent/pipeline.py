@@ -49,6 +49,7 @@ class Pipeline:
         self.web = web or PublicWeb(settings.research_user_agent)
         self.verifier = verifier or verify_preview
         self.run = None
+        self.discovery_outcome = None
 
     @property
     def ai(self):
@@ -100,7 +101,7 @@ class Pipeline:
 
     def start(self, kind, run_key):
         self.run = self.session.scalar(select(WorkflowRun).where(WorkflowRun.run_key == run_key))
-        if self.run and self.run.status == "completed":
+        if self.run and self.run.status.startswith("completed"):
             return False
         if not self.run:
             self.run = WorkflowRun(kind=kind, run_key=run_key, summary={})
@@ -129,6 +130,12 @@ class Pipeline:
                 raise Blocked("Configured database storage cap reached")
 
     def discover(self, country=None):
+        if self.config.discovery_provider == "open_data" and self.discovery is None:
+            from website_agent.discovery_engine import DiscoveryEngine
+
+            self.discovery_outcome = DiscoveryEngine(self.session, self.settings, self.config).run(country)
+            self.log("discovery_outcome", **self.discovery_outcome)
+            return self.discovery_outcome["status"].startswith("completed")
         selected = rotate(self.session, self.config, country)
         if not selected:
             self.log("location_deferred", reason="no eligible local research window")
@@ -213,16 +220,20 @@ class Pipeline:
         else:
             prospect.name = research.business_name_quote
             prospect.status = "qualified"
+            source = self.session.scalar(
+                select(BusinessSource).where(BusinessSource.prospect_id == prospect.id)
+            )
+            discovery_evidence = source.evidence if source else {}
             queue = self.session.scalar(
                 select(LocationQueue).where(
                     LocationQueue.country == prospect.country,
-                    LocationQueue.city == prospect.city,
-                    LocationQueue.niche == prospect.niche,
+                    LocationQueue.city == discovery_evidence.get("rotation_city", prospect.city),
+                    LocationQueue.niche == discovery_evidence.get("requested_niche", prospect.niche),
                 )
             )
             if queue:
                 queue.relevant += 1
-        audit.research = research.model_dump()
+        audit.research = {**research.model_dump(), "gemini": getattr(self.ai, "last_provenance", {})}
         self.session.commit()
         self.log(prospect.status, prospect_id=prospect.id, score=audit.score)
 
@@ -246,7 +257,11 @@ class Pipeline:
             prospect_id=prospect.id,
             version=1,
             files={},
-            metadata_json={"design": design.model_dump(), "source": prospect.url},
+            metadata_json={
+                "design": design.model_dump(),
+                "source": prospect.url,
+                "gemini": getattr(self.ai, "last_provenance", {}),
+            },
         )
         self.session.add(site)
         self.session.flush()
@@ -259,6 +274,8 @@ class Pipeline:
     def deploy(self, site):
         if site.status == "verified":
             return site
+        if not self.settings.enable_deployment:
+            raise CapacityDeferred("Netlify deployment requires separate approval")
         title = "gwa-" + site.id
         if not site.deploy_id:
             if site.status == "deploy_pending":
@@ -341,7 +358,11 @@ class Pipeline:
             deployed = self.step("deployment", lambda s=site: self.deploy(s), prospect)
             if deployed:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
-        if scheduled and discovered_location and not self.run.summary.get("failure"):
+        if (
+            scheduled
+            and discovered_location
+            and not any(self.run.summary.get(k) for k in ("failure", "capacity_deferred"))
+        ):
             set_config(
                 self.session,
                 "daily_checkpoint",
@@ -402,17 +423,19 @@ class Pipeline:
                         prospect_id=prospect.id,
                         category=category,
                         gmail_thread=incoming["threadId"],
-                        action="Review Gmail thread and acknowledgment draft",
+                        action="Review Gmail thread; owner handles the conversation",
                     )
         # Retry saved acknowledgment work independently of already-classified messages.
         for prospect in self.session.scalars(
             select(Prospect).where(Prospect.status.in_(["interested", "needs_information"]))
         ).all():
             self.step("acknowledgment", lambda p=prospect: self.acknowledge(p), prospect)
-        if not self.run.summary.get("failure"):
+        if not any(self.run.summary.get(k) for k in ("failure", "capacity_deferred")):
             set_config(self.session, "reply_checkpoint", {"at": began.isoformat()})
 
     def acknowledge(self, prospect):
+        if not self.settings.enable_routine_replies:
+            return  # Owner handles conversations; do not generate or create automatic reply drafts.
         site = self.session.scalar(
             select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
         )
@@ -427,6 +450,8 @@ class Pipeline:
         self.replies()  # Must complete successfully before ANY followup processing.
         if self.run.summary.get("failure"):
             raise Blocked("Reply synchronization incomplete; followups paused")
+        if self.run.summary.get("capacity_deferred"):
+            raise CapacityDeferred("Reply classification deferred; followups paused")
         for prospect in self.session.scalars(select(Prospect).where(Prospect.status == "contacted")).all():
             for sequence in range(1, self.config.limits.max_followups + 1):
                 if not followup_eligible(self.session, prospect, self.config, now(), sequence):
@@ -467,5 +492,14 @@ class Pipeline:
                     self.log("followup_sent", prospect_id=prospect.id, sequence=sequence)
 
     def finish(self):
-        self.run.status = "partial" if self.run.summary.get("failure") else "completed"
+        if self.run.summary.get("failure"):
+            self.run.status = "partial"
+        elif self.run.summary.get("capacity_deferred"):
+            self.run.status = "deferred_resource_limit"
+        elif self.discovery_outcome and (
+            self.run.kind == "discover" or not self.discovery_outcome["status"].startswith("completed")
+        ):
+            self.run.status = self.discovery_outcome["status"]
+        else:
+            self.run.status = "completed"
         self.session.commit()

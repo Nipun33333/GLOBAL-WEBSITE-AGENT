@@ -9,6 +9,14 @@ from website_agent.security import Blocked
 
 def live_smoke(pipeline):
     """Explicit integration test; all source/draft state is durable, no sending path."""
+    if not all(
+        (
+            pipeline.settings.enable_generation,
+            pipeline.settings.enable_deployment,
+            pipeline.settings.enable_drafts,
+        )
+    ):
+        raise Blocked("Live smoke requires separate generation, deployment and draft approvals")
     pipeline.settings.require("owner_email", "sender_name", "sender_postal_address")
     session = pipeline.session
     today = now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -46,7 +54,11 @@ def live_smoke(pipeline):
     session.add(site)
     session.flush()
     site.files = render(design, {"snippets": snippets}, "https://example.com", site.id)
-    site.metadata_json = {"internal_smoke": True, "sha256": validate(site.files)}
+    site.metadata_json = {
+        "internal_smoke": True,
+        "sha256": validate(site.files),
+        "gemini": getattr(pipeline.ai, "last_provenance", {}),
+    }
     session.commit()
     pipeline.deploy(site)
     message = Message(

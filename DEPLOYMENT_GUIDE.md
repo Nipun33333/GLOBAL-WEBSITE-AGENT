@@ -14,36 +14,15 @@ Netlify retention and account limits can remove old deploys; configure adequate 
 
 ## Schedules
 
-All GitHub cron expressions are UTC. Set `AUTOMATION_ENABLED=true` only after configuring the services. Without it, scheduled workflows skip their runtime jobs.
+The single Global Website Agent workflow retains UTC schedules `17 * * * *` (daily), `7,37 * * * *` (replies), `42 * * * *` (followups), and `23 4 * * 1` (weekly report). Application checkpoints and local country windows remain authoritative. Both `AUTOMATION_ENABLED` and `UNIFIED_WORKFLOW_ENABLED` must be explicitly enabled after [migration](docs/WORKFLOW_MIGRATION.md); all schedule modes and side effects also require separate approval variables. They remain disabled.
 
-| Workflow | UTC schedule | Behavior |
-|---|---|---|
-| `global-daily-pipeline.yml` | Hourly at minute 17 | Runs one successful daily discovery cycle after the configured local schedule hour; retries deferred/missed work |
-| `gmail-reply-checker.yml` | Minutes 7 and 37 | Polls replies, suppresses withdrawals, records owner notifications and acknowledgment drafts |
-| `followup-processor.yml` | Hourly at minute 42 | Processes replies first, then eligible followups |
-| `weekly-report.yml` | Monday 04:23 UTC | Seven-day digest |
-| `manual-production-run.yml` | Manual only | Explicit command, country and production-mode controls |
-
-The daily eligibility threshold is `schedule_hour` in `schedule_timezone` in YAML (default 03:00 UTC). Hourly polling lets an underserved country's own local research window open without permanently preferring countries awake at one fixed UTC time. Country search counts enforce fairness; oldest city/niche combinations win, with a bounded relevance preference. Public holidays, subdivisions, local weekends and time zones use the pinned `holidays`/`tzdata` packages. Missing calendars fail closed. Manual country selection bypasses country balancing, not the local time checks.
-
-GitHub can delay or drop schedule events. A durable checkpoint allows the next heartbeat to catch up without replaying all missed days or creating a burst of emails. Manual runs do not alter checkpoint configuration or scheduled workflow files. All mutating CLI jobs share a PostgreSQL advisory lock, in addition to GitHub concurrency controls. GitHub may replace a pending concurrency job; the next heartbeat resumes durable work. The system does not promise exact-minute execution.
+GitHub can delay/drop events or replace a pending concurrency job. Persistent queues/checkpoints resume on later ticks. One shared concurrency group plus the PostgreSQL advisory lock serializes mutations; no exact-minute guarantee is made.
 
 ## Manual runs
 
-In this repository, open **Actions → Manual Production Run → Run workflow**. Choose `daily`, `replies`, `followups`, `report`, `reconcile`, or `live-smoke`. Leave `production` false during setup. Leave `country` empty for worldwide rotation, or use an ISO code such as `IN` or `GB`.
+Open **Actions → Global Website Agent → Run workflow**. Follow [the mode/approval table](docs/UNIFIED_WORKFLOW.md), review the exact SHA and quotas/database first, then select the intended operation. Start with diagnostics. Country filtering applies to discovery selection in daily/discover only; existing queued prospects retain individual country windows.
 
-The workflow uses `agent-runtime`, applies migrations, installs locked dependencies and Chromium, runs the command, and retains a sanitized report for 14 days. It never changes schedules. Production requires **both** `production=true` in the invocation and `ENABLE_SENDING=true` in variables; every per-prospect gate still applies.
-
-Equivalent local commands:
-
-```bash
-uv run website-agent daily --country IN
-uv run website-agent replies
-uv run website-agent followups
-uv run website-agent reconcile
-# Only after all production checks:
-uv run website-agent daily --production
-```
+The workflow uses agent-runtime, installs locked runtime dependencies, installs Chromium only for daily/live-smoke, and uploads aggregate allowlisted reports for one day. It never applies migrations. Generation, deployment, Gmail drafts and sending have independent permissions; all default disabled. Routine customer replies remain disabled and owner-controlled.
 
 ## Base44 migration and sending activation
 
@@ -72,10 +51,16 @@ uv run website-agent import-eligibility --file private/eligibility.json
 ```
 
 8. Confirm sender identity, physical address, OAuth permissions, model costs, provider rights, preview hosting and applicable local requirements. Inspect generated drafts. Use the live smoke test and a real draft-only daily run before any sending activation.
-9. Set `ENABLE_SENDING=true`, then request production mode. Routine acknowledgments also need `ENABLE_ROUTINE_REPLIES=true` and prospect-specific `routine_reply_authorized=true`.
+9. Set `ENABLE_SENDING=true`, then request production mode. The master control panel always disables routine customer replies.
 
 Autonomous messages use factual-claim-free multilingual catalog copy, the observed business name, and a verified preview. Gemini prepares suggested content, but arbitrary suggestions cannot become promises or prices in automatic sends. If a trusted operator deliberately edits database copy, the exact changed digest must be approved with `approve-copy --message-id ID --digest SHA256 --reviewer NAME`. This is an optional customization path, not a per-email requirement for catalog messages. Use `export-drafts` to inspect private copy/digests.
 
 Every outbound attempt rechecks suppression, prior external Gmail correspondence, incoming mail, local eligibility and the preview. The existing Gmail draft is consumed through `drafts.send`, with the validated MIME content supplied in the send request; an already-sent draft is not left behind. Pending draft creation can be reconciled by its Message-ID. Changing a verified recipient or sender identity/address after draft creation blocks sending until the draft is regenerated. Followups are due only after five local business days, at most two, and stop on any reply. An API timeout after send reserves the attempt as `uncertain`; **no automatic resend** occurs. `reconcile` searches Gmail by the stable RFC Message-ID and records verified sent evidence. Unresolved uncertain states need mailbox investigation; do not manually reset them just to make a job pass.
 
-Owner notifications are durable `owner_notification` events in the Actions summary/weekly digest, with Gmail thread IDs. Enable GitHub Actions notifications for this repository. The implementation does not send a separate owner-notification email.
+Owner notifications are durable `owner_notification` database events with Gmail thread IDs; Actions publishes aggregate counts only. Enable GitHub Actions notifications for this repository. The implementation does not send a separate owner-notification email.
+
+## Discovery readiness before any activation
+
+The feature replaces all seven old workflow definitions with one master workflow, preserving operational commands, four schedules, local windows and database/external-operation safety. PR #8 registers the replacement on main; the old main definitions remain until PR #6 is separately approved. Keep schedules disabled throughout transition. See [migration order](docs/WORKFLOW_MIGRATION.md).
+
+For read-only account/database diagnostics and separately approved US discovery, follow [the manual guide](docs/MANUAL_LIVE_VERIFICATION.md). The public credential-free probe remains available through `scripts/probe_discovery.py`; its candidates are not verified prospects. See [FINAL_READINESS.md](docs/FINAL_READINESS.md) for live-test limitations and owner actions.

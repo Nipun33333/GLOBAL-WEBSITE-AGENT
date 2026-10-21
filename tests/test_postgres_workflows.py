@@ -36,24 +36,14 @@ def test_postgresql_migrations_and_cross_runner_lock():
 
 def test_required_workflows_and_safety():
     root = Path(".github/workflows")
-    required = [
-        "global-daily-pipeline",
-        "gmail-reply-checker",
-        "followup-processor",
-        "weekly-report",
-        "manual-production-run",
-        "tests",
-    ]
-    for name in required:
-        data = yaml.load((root / (name + ".yml")).read_text(), Loader=yaml.BaseLoader)
-        assert data["permissions"]["contents"] == "read"
-        assert "workflow_dispatch" in data["on"]
-    shared = yaml.load((root / "_agent-runtime.yml").read_text(), Loader=yaml.BaseLoader)
-    assert shared["jobs"]["agent"]["concurrency"]["cancel-in-progress"] == "false"
-    assert "secrets.GMAIL_REFRESH_TOKEN" in shared["jobs"]["agent"]["env"]["GMAIL_REFRESH_TOKEN"]
-    manual = yaml.load((root / "manual-production-run.yml").read_text(), Loader=yaml.BaseLoader)
-    assert manual["on"]["workflow_dispatch"]["inputs"]["production"]["default"] == "false"
-    for step in shared["jobs"]["agent"]["steps"]:
+    assert sorted(p.name for p in root.glob("*.y*ml")) == ["global-website-agent.yml"]
+    data = yaml.load((root / "global-website-agent.yml").read_text(), Loader=yaml.BaseLoader)
+    assert data["permissions"] == {"contents": "read"}
+    assert "workflow_dispatch" in data["on"]
+    job = data["jobs"]["agent"]
+    assert job["concurrency"]["cancel-in-progress"] == "false"
+    assert data["on"]["workflow_dispatch"]["inputs"]["request_sending"]["default"] == "false"
+    for step in job["steps"]:
         if "uses" in step:
             assert len(step["uses"].split("@")[1]) == 40
 

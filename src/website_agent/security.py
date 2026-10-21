@@ -60,13 +60,16 @@ class Page:
 class PublicWeb:
     """Pins checked DNS addresses at connection time, including every redirect."""
 
-    def __init__(self, user_agent="GlobalWebsiteConceptBot/1.0", max_bytes=1_000_000):
+    def __init__(self, user_agent="GlobalWebsiteConceptBot/1.0", max_bytes=1_000_000, discovery_budget=None):
         self.user_agent = user_agent
         self.max_bytes = max_bytes
         self.robots = {}
+        self.discovery_budget = discovery_budget
 
-    def fetch(self, url, *, robots=True):
+    def fetch(self, url, *, robots=True, redirects=True):
         for _ in range(5):
+            if self.discovery_budget:
+                self.discovery_budget.request()
             p = urlsplit(url)
             addresses = public_addresses(url)
             origin = urlunsplit((p.scheme, p.netloc, "", "", ""))
@@ -109,9 +112,19 @@ class PublicWeb:
                 )
                 try:
                     if response.status in {301, 302, 303, 307, 308}:
+                        if not redirects:
+                            raise Blocked("Redirects are disabled for this endpoint")
                         url = urljoin(url, response.headers["Location"])
                         continue
-                    content = response.read(self.max_bytes + 1, decode_content=True)
+                    read_limit = self.max_bytes
+                    if self.discovery_budget:
+                        read_limit = min(
+                            read_limit,
+                            self.discovery_budget.config.max_download_bytes - self.discovery_budget.bytes,
+                        )
+                    content = response.read(read_limit + 1, decode_content=True)
+                    if self.discovery_budget:
+                        self.discovery_budget.consume(len(content))
                     if len(content) > self.max_bytes:
                         raise Blocked("Page exceeds research size limit")
                     return Page(

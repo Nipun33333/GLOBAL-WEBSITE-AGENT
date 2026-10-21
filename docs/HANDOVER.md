@@ -1,8 +1,17 @@
-# Implementation handover — 20 October 2026
+# Implementation handover — updated 21 October 2026
+
+**Current unified-workflow update:** PR #8 registers Global Website Agent; PR #6 contains the single-workflow implementation and remains unmerged. All automation/sending controls remain disabled. Gemini has bounded exact-model fallback with empty account authorization/pricing maps, so live generation remains blocked. See [current readiness](FINAL_READINESS.md), [control panel](UNIFIED_WORKFLOW.md), [Gemini policy](GEMINI_FALLBACK.md) and [migration sequence](WORKFLOW_MIGRATION.md). Older workflow inventories and validation counts below are historical, not current activation instructions.
+
 
 Implemented and committed in **Nipun33333/GLOBAL-WEBSITE-AGENT** only. The Base44 system and other repositories were not accessed or modified. No live business emails were sent, no real deployment URLs were invented, and no paid resources or billing were activated.
 
-## Delivery status
+The current feature-branch follow-up is documented in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md): spatial STAC selection, real bounded Parquet reads, recovery fixes and current validation. The historical results below remain historical. PR #6 remains unmerged.
+
+## Current follow-up
+
+Registration PR #7 is merged; the manual workflow is registered with zero live runs. All 12 required secret names are present at repository scope, and DISCOVERY_API_KEY is optional. No credentials need to be recreated locally. See [FINAL_READINESS.md](FINAL_READINESS.md) for current tests, public retrieval evidence, security fixes and owner actions. PR #6 remains open. The older integration/setup statements below describe the historical delivery, not missing GitHub Secrets today.
+
+## Historical delivery status
 
 The application, migration, integration adapters, configuration, security controls, tests and GitHub Actions workflows are implemented. **It is not yet verified as production-operational.** Service credentials, legal/provider authorization and Base44 history were not supplied. The defaults remain draft-only, and scheduled runtime jobs are gated by `AUTOMATION_ENABLED`.
 
@@ -75,7 +84,7 @@ Use one existing dedicated Netlify project. Each prospect version is a real draf
 
 - [ ] Dedicated production PostgreSQL configured, migrated, restricted and backed up; direct/session-mode connection used.
 - [ ] Gemini key, selected model access and current prices verified.
-- [ ] Discovery provider key and explicit storage/actual-outreach-use authorization supplied.
+- [ ] Overture source/license notices reviewed and real discovery-only persistence verified; optional OSM source separately configured and authorized. No search key is required in open_data mode.
 - [ ] Dedicated Netlify project/token configured and real HTTPS preview smoke test passed.
 - [ ] Gmail OAuth refresh and sender identity verified; real postal address/reply-to configured.
 - [ ] Existing Base44 contact/thread/opt-out exports imported and validated against Gmail.
@@ -91,7 +100,7 @@ Full operational instructions: [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md). Fu
 
 Static website scoring is not Lighthouse or an exhaustive accessibility/visual audit. Facts remain source quotations and safe templates constrain generated code; arbitrary model JavaScript is intentionally excluded. Email catalog languages are English, Hindi, Arabic, German, French and Japanese; other languages fall back to English catalog email text. There is no admin web dashboard. Owner notifications are stored in the database and Actions summaries, not sent as separate emails. Hosting billing/retention remains account-specific. External ambiguous actions can require operator reconciliation. An independent Base44 system cannot be locked by this repository: documented audience separation remains necessary.
 
-## Complete tracked project structure
+## Original tracked project structure (before discovery follow-up)
 
 ```text
 GLOBAL-WEBSITE-AGENT/

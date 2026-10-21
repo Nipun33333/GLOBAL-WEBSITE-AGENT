@@ -24,6 +24,9 @@ def settings():
     return Settings(
         _env_file=None,
         gemini_api_key="test",
+        enable_generation=True,  # Explicit permission for isolated mocked fixtures.
+        enable_deployment=True,
+        enable_drafts=True,
         discovery_api_key="test",
         netlify_auth_token="test",
         netlify_site_id="site-1",
@@ -40,7 +43,14 @@ def settings():
 
 @pytest.fixture
 def config(settings):
-    return settings.config()
+    from website_agent.settings import ModelAuthorization
+
+    cfg = settings.config()
+    cfg.gemini.usage_authorizations = {
+        model: ModelAuthorization(tier="free", review_reference="offline fixture", expires_on="2099-01-01")
+        for model in cfg.gemini.capabilities
+    }
+    return cfg
 
 
 @pytest.fixture

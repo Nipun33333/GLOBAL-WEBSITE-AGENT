@@ -8,6 +8,7 @@
 |---|---|
 | `settings.py` | Validated environment/YAML configuration |
 | `database.py` | Fourteen ORM tables, session lock, timestamps, suppression/config helpers |
+| `discovery_engine.py`, `discovery_datasets.py`, `discovery_worker.py`, `discovery_verify.py`, `discovery_support.py` | Bounded zero-key readers, source fallback, supervised decoding, evidence checks and persistent recovery |
 | `discovery.py` | Provider protocol, Brave/authorized JSON integrations, read retries |
 | `security.py` | DNS-pinned public fetcher, robots, URL/email validation |
 | `analysis.py` | Weighted static audit with evidence, source snippets, contact research |
@@ -45,8 +46,18 @@ Gemini verifies candidate relevance against retrieved snippets, summarizes resea
 
 ## Retry and reconciliation
 
-Idempotent provider GETs retry transport/5xx errors three times with backoff. Gemini retries server errors with separate durable cost reservations; quota exhaustion persists a pause through the next UTC day. Gmail POSTs and Netlify deployment POSTs are never blindly retried. Known deployment IDs resume polling. Pending deploy titles and Gmail draft identities can be reconciled. Missing send results require Gmail Message-ID reconciliation. A separate discovery checkpoint avoids rediscovering on every downstream recovery heartbeat. Configured capacity exhaustion is a reported deferral, not a failed daily cycle. Other failed/deferred daily work remains durable for subsequent runs.
+Idempotent provider GETs retry transport/5xx errors three times with backoff. Gemini retries server errors with separate durable cost reservations; quota exhaustion persists a pause through the next UTC day. Gmail POSTs and Netlify deployment POSTs are never blindly retried. Known deployment IDs resume polling. Pending deploy titles and Gmail draft identities can be reconciled. Missing send results require Gmail Message-ID reconciliation. A separate discovery checkpoint avoids rediscovering on every downstream recovery heartbeat. Configured capacity exhaustion returns a deferred status, not a completed daily cycle. Other failed/deferred daily work remains durable for subsequent runs.
 
-Reply processing isolates classification failures per message. One unavailable model call cannot prevent a later deterministic opt-out or structured delivery-status report from being processed. The reply checkpoint advances only after a clean sweep; failed sweeps stop followups. Acknowledgment work retries independently of already-classified messages.
+Reply processing isolates classification failures per message. One unavailable model call cannot prevent a later deterministic opt-out or structured delivery-status report from being processed. The reply checkpoint advances only after a clean sweep; failed sweeps stop followups. Acknowledgment work remains disabled in the master workflow; the owner handles conversations. Deferred classifications keep the reply checkpoint unchanged and pause followups.
 
-Reports contain stage counters, selected locations, audit scores, verified URLs, actual draft/send/followup counts, reply categories, owner notifications, cost reservations, database size and sanitized error types. They do not include OAuth tokens or raw email bodies. Full evidence lives in the restricted database.
+Detailed local reports contain stage counters, selected locations, audit scores, verified URLs, actual draft/send/followup counts, reply categories, owner notifications, cost reservations, database size and sanitized error types. They do not include OAuth tokens or raw email bodies. Full evidence lives in the restricted database.
+
+Zero-key discovery uses existing `configuration` rows for `discovery_task:*`, provider circuits and checkpoints; no migration or separate queue service is required. `business_sources.evidence` retains release, category, coordinates, verification and license provenance. See [DISCOVERY.md](DISCOVERY.md).
+
+## Unified execution and model policy
+
+`global-website-agent.yml` owns manual and scheduled triggers; `scripts/master_entry.py` validates event/owner/SHA and independent permissions before credentials load, then dispatches one fixed argv command after read-only database preflight. No reusable workflow or automatic migration remains. [Control panel](UNIFIED_WORKFLOW.md), [migration](WORKFLOW_MIGRATION.md).
+
+`GeminiPolicy` validates a bounded exact model catalog, expiry, tier authorizations and retry limits. Account metadata, public structured-output review and price authorization are separate gates. Per-model cooldowns, global quota pauses, durable cost reservations and validated cache/provenance use existing configuration/cost tables. Model-generated site/audit/message metadata includes provenance; no schema migration is needed. Invalid requests, credentials and safety blocks do not trigger model rotation. [Fallback details](GEMINI_FALLBACK.md).
+
+Generation/deployment/draft permissions are enforced before provider mutations and before creating ambiguous draft/deploy state. Capacity/authorization deferrals now produce a deferred run status and do not advance the daily completion checkpoint. Detailed reports remain local/restricted; Actions uploads only allowlisted aggregate results, without customer URLs or Gmail thread IDs.

@@ -30,7 +30,9 @@ from website_agent.security import Blocked, Page
 
 def test_gemini_cache_usage_and_schema(session, settings, config):
     client = Mock()
-    client.models.get.return_value = SimpleNamespace(supported_actions=["generateContent"])
+    client.models.get.return_value = SimpleNamespace(
+        supported_actions=["generateContent"], input_token_limit=1048576, output_token_limit=65536
+    )
     client.models.generate_content.return_value = SimpleNamespace(
         text=json.dumps({"subject": "Concept", "opening": "Hello", "invitation": "Interested?"}),
         usage_metadata=SimpleNamespace(
@@ -38,6 +40,8 @@ def test_gemini_cache_usage_and_schema(session, settings, config):
         ),
     )
     config.model_prices = {settings.gemini_model: {"input_per_million": 0.2, "output_per_million": 1}}
+    config.gemini.usage_authorizations[settings.gemini_model].tier = "paid"
+    config.gemini.allow_paid_fallback = True
     ai = Gemini(settings, config, session, client)
     result = ai.generate("draft", {}, EmailCopy)
     assert result.subject == "Concept"
@@ -52,12 +56,18 @@ def test_gemini_model_fallback_and_budget(session, settings, config):
     client = Mock()
     client.models.get.side_effect = [
         errors.ClientError(404, {"error": {"message": "unavailable"}}),
-        SimpleNamespace(supported_actions=["generateContent"]),
+        SimpleNamespace(
+            supported_actions=["generateContent"], input_token_limit=1048576, output_token_limit=65536
+        ),
     ]
-    settings.gemini_fallback_models = "configured-fallback"
+    settings.gemini_fallback_models = "gemini-3.6-flash"
     ai = Gemini(settings, config, session, client)
-    assert ai.available_model() == "configured-fallback"
-    config.model_prices = {"configured-fallback": {"input_per_million": 1, "output_per_million": 1}}
+    assert ai.available_model() == "gemini-3.6-flash"
+    config.model_prices = {"gemini-3.6-flash": {"input_per_million": 1, "output_per_million": 1}}
+    client.models.get.side_effect = None
+    client.models.get.return_value = SimpleNamespace(
+        supported_actions=["generateContent"], input_token_limit=1048576, output_token_limit=65536
+    )
     config.limits.ai_budget_usd = 0
     with pytest.raises(Blocked):
         ai.generate("draft", {}, EmailCopy)
@@ -66,7 +76,9 @@ def test_gemini_model_fallback_and_budget(session, settings, config):
 
 def test_gemini_quota_no_fallback(session, settings, config):
     client = Mock()
-    client.models.get.return_value = SimpleNamespace(supported_actions=["generateContent"])
+    client.models.get.return_value = SimpleNamespace(
+        supported_actions=["generateContent"], input_token_limit=1048576, output_token_limit=65536
+    )
     client.models.generate_content.side_effect = errors.ClientError(429, {"error": {"message": "quota"}})
     config.model_prices = {settings.gemini_model: {"input_per_million": 0, "output_per_million": 0}}
     with pytest.raises(Blocked, match="quota"):
@@ -89,6 +101,7 @@ def test_gmail_mime(settings):
 
 
 def test_gmail_refresh_identity_draft_send(settings):
+    settings.enable_sending = True  # Explicit permission for this mocked send fixture.
     credentials = Mock(valid=False, token="refreshed")
 
     def refresh(request):

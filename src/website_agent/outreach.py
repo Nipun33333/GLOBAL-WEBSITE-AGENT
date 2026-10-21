@@ -93,7 +93,11 @@ def prepare(session, prospect, site, settings, ai, kind="initial", sequence=0):
         recipient=prospect.email,
         subject=copy.subject,
         body=body,
-        details={"copy_digest": hashlib.sha256((copy.subject + body).encode()).hexdigest()},
+        details={
+            "copy_digest": hashlib.sha256((copy.subject + body).encode()).hexdigest(),
+            "gemini": getattr(ai, "last_provenance", {}),
+            "trusted_catalog_used": copy == catalog_copy,
+        },
     )
     if kind != "initial":
         initial = session.scalar(
@@ -133,6 +137,8 @@ def raw_message(settings, message):
 
 
 def create_draft(session, gmail, settings, message):
+    if not settings.enable_drafts:
+        raise CapacityDeferred("Gmail draft creation requires separate approval")
     if message.state == "draft_pending":
         existing = gmail.find_draft(message.rfc_message_id)
         if existing:

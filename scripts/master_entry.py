@@ -131,6 +131,44 @@ def classify_database_error(exc):
     return "connection_tls_or_configuration_unavailable"
 
 
+def safe_discovery_details(value):
+    """Allowlist public run metrics; never include customer names, URLs, or mailboxes."""
+    from datetime import datetime
+
+    from website_agent import live_verification as live
+
+    if not isinstance(value, dict):
+        return {}
+    out = {}
+    if value.get("status") in live.STATUSES:
+        out["status"] = value["status"]
+    reason = value.get("reason")
+    if isinstance(reason, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,79}", reason):
+        out["reason"] = reason
+    next_at = value.get("next_at")
+    if isinstance(next_at, str) and len(next_at) < 64:
+        try:
+            datetime.fromisoformat(next_at)
+            out["next_at"] = next_at
+        except ValueError:
+            pass
+    for name in (
+        "accepted", "accepted_in_task", "unverified", "requests", "bytes",
+        "queries", "records_scanned", "candidate_verifications",
+        "official_websites_verified", "businesses_inserted",
+        "remaining_queries", "pending_candidates",
+    ):
+        item = value.get(name)
+        if type(item) is int and 0 <= item <= 10**12:
+            out[name] = item
+    layers = value.get("fallback_layers_attempted")
+    if isinstance(layers, list):
+        out["fallback_layers_attempted"] = [
+            name for name in layers[:8] if isinstance(name, str) and name in live.LAYERS
+        ]
+    return out
+
+
 def safe_readonly_account_checks(settings):
     """Metadata/identity only; no generation, deployment, draft or mail mutation."""
     if (
@@ -286,8 +324,40 @@ def execute(selected):
     from website_agent.database import CostUsage, Event, Message, Site, WorkflowRun, now
 
     counts = {}
+    run_diagnostics = {}
     try:
         with live.readonly_database(settings) as connection:
+            exact_run = connection.execute(
+                select(WorkflowRun.id, WorkflowRun.status).where(
+                    WorkflowRun.run_key == (
+                        f"{mode}:{os.environ.get('GITHUB_RUN_ID', '')}:"
+                        f"{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+                    )
+                )
+            ).first()
+            if exact_run:
+                run_diagnostics["persisted_status"] = exact_run.status
+                outcome = connection.execute(
+                    select(Event.details)
+                    .where(
+                        Event.run_id == exact_run.id,
+                        Event.event == "discovery_outcome",
+                    )
+                    .order_by(Event.created_at.desc())
+                    .limit(1)
+                ).scalar()
+                if outcome:
+                    run_diagnostics["discovery"] = safe_discovery_details(outcome)
+            # Recovery journals also record why a fully bounded run deferred.
+            from website_agent.database import Configuration
+
+            recovery = connection.execute(
+                select(Configuration.value).where(
+                    Configuration.key == "discovery_task:worldwide"
+                )
+            ).scalar()
+            if recovery:
+                run_diagnostics["recovery"] = safe_discovery_details(recovery)
             since = now() - timedelta(days=7 if mode == "report" else 1)
             for label, table in (("runs", WorkflowRun), ("sites", Site), ("messages", Message)):
                 counts[label] = connection.scalar(
@@ -340,6 +410,7 @@ def execute(selected):
             "revision": selected["revision"],
             "sending_enabled": selected["sending"],
             "schema_bootstrap": bootstrap_status or "not_needed",
+            "run_diagnostics": run_diagnostics,
             "aggregate_counts": counts,
         }
     )

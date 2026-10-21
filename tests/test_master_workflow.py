@@ -228,19 +228,6 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert secret not in json.dumps(result)
 
 
-@pytest.mark.parametrize(
-    "private_error,expected",
-    [
-        ("SSL: certificate verify failed for user=private", "tls_certificate_verification_failed"),
-        ("could not translate host name: private.example", "database_dns_resolution_failed"),
-        ("Network is unreachable: private host", "database_network_or_ipv6_unreachable"),
-        ("connection timed out: private host", "database_connection_timed_out"),
-        ("connection refused: private host", "database_connection_refused"),
-        ("password authentication failed for user private", "authentication_rejected"),
-        ("Tenant or user not found: private", "pooler_tenant_or_user_unavailable"),
-        ("secret but unknown error", "connection_tls_or_configuration_unavailable"),
-    ],
-)
 def test_discovery_diagnostics_allow_only_safe_status_reason_and_counts():
     raw = {
         "status": "deferred_resource_limit",
@@ -277,6 +264,19 @@ def test_discovery_diagnostics_reject_untrusted_labels_and_values():
     assert master.safe_discovery_details(raw) == {}
 
 
+@pytest.mark.parametrize(
+    "private_error,expected",
+    [
+        ("SSL: certificate verify failed for user=private", "tls_certificate_verification_failed"),
+        ("could not translate host name: private.example", "database_dns_resolution_failed"),
+        ("Network is unreachable: private host", "database_network_or_ipv6_unreachable"),
+        ("connection timed out: private host", "database_connection_timed_out"),
+        ("connection refused: private host", "database_connection_refused"),
+        ("password authentication failed for user private", "authentication_rejected"),
+        ("Tenant or user not found: private", "pooler_tenant_or_user_unavailable"),
+        ("secret but unknown error", "connection_tls_or_configuration_unavailable"),
+    ],
+)
 def test_database_error_classes_never_echo_private_values(private_error, expected):
     classified = master.classify_database_error(RuntimeError(private_error))
     assert classified == expected

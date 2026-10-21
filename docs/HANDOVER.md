@@ -3,7 +3,7 @@
 **Current unified-workflow update:** PR #8 registers Global Website Agent; PR #6 contains the single-workflow implementation and remains unmerged. All automation/sending controls remain disabled. Gemini has bounded exact-model fallback with empty account authorization/pricing maps, so live generation remains blocked. See [current readiness](FINAL_READINESS.md), [control panel](UNIFIED_WORKFLOW.md), [Gemini policy](GEMINI_FALLBACK.md) and [migration sequence](WORKFLOW_MIGRATION.md). Older workflow inventories and validation counts below are historical, not current activation instructions.
 
 
-Implemented and committed in **Nipun33333/GLOBAL-WEBSITE-AGENT** only. The Base44 system and other repositories were not accessed or modified. No live business emails were sent, no real deployment URLs were invented, and no paid resources or billing were activated.
+Implemented and committed in **Nipun33333/GLOBAL-WEBSITE-AGENT** only. Other repositories were not accessed or modified. No live business emails were sent, no real deployment URLs were invented, and no paid resources or billing were activated.
 
 The current feature-branch follow-up is documented in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md): spatial STAC selection, real bounded Parquet reads, recovery fixes and current validation. The historical results below remain historical. PR #6 remains unmerged.
 
@@ -13,7 +13,7 @@ Registration PR #7 is merged; the manual workflow is registered with zero live r
 
 ## Historical delivery status
 
-The application, migration, integration adapters, configuration, security controls, tests and GitHub Actions workflows are implemented. **It is not yet verified as production-operational.** Service credentials, legal/provider authorization and Base44 history were not supplied. The defaults remain draft-only, and scheduled runtime jobs are gated by `AUTOMATION_ENABLED`.
+The application, migration, integration adapters, configuration, security controls, tests and GitHub Actions workflows are implemented. **It is not yet verified as production-operational.** Service credentials and legal/provider authorization had not yet been supplied. The defaults remain draft-only, and scheduled runtime jobs are gated by `AUTOMATION_ENABLED`.
 
 ## Historical verification record
 
@@ -37,7 +37,7 @@ These results record implementation verification before automated test, lint and
 | Website generation | Complete responsive HTML/CSS/JS, source-quotation validation, safe rendering, RTL/UI localization | Source and real Chromium tested; live Gemini generation blocked |
 | Netlify | ZIP draft deployment, provider ID polling, immutable HTTPS URLs, reconciliation, HTML/assets/mobile verification | Existing project/token missing; no real preview deployment claimed |
 | Gmail | Official REST API, OAuth refresh, identity check, MIME drafts, draft-consuming sends, sent verification, pagination, reply/DSN processing | OAuth credentials and sender details missing |
-| Outreach controls | Consent/policy/history checks, suppressions, Base44 audience exclusion, budgets, idempotency, business-day followups | Defaults deny sending; policies and imports unvalidated |
+| Outreach controls | Consent/policy/history checks, suppressions, Gmail prior-contact screening, budgets, idempotency, business-day followups | Defaults deny sending; policies and imports unvalidated |
 | GitHub Actions | Five production entry workflows plus shared runtime | Production automation gated |
 
 ## Exact GitHub Secrets
@@ -87,8 +87,7 @@ Use one existing dedicated Netlify project. Each prospect version is a real draf
 - [ ] Overture source/license notices reviewed and real discovery-only persistence verified; optional OSM source separately configured and authorized. No search key is required in open_data mode.
 - [ ] Dedicated Netlify project/token configured and real HTTPS preview smoke test passed.
 - [ ] Gmail OAuth refresh and sender identity verified; real postal address/reply-to configured.
-- [ ] Existing Base44 contact/thread/opt-out exports imported and validated against Gmail.
-- [ ] Exclusive audience assignment documented so the running Base44 agent cannot contact the same prospects.
+- [ ] Gmail Sent/Inbox history verified and existing suppression/opt-out records preserved.
 - [ ] Current country policies and prospect-specific legal-basis/contact evidence reviewed and imported.
 - [ ] Draft-only real pipeline, replies, opt-outs and followup timing verified.
 - [ ] GitHub scheduled/manual runtime configured and tested; account quotas and owner notification settings reviewed.
@@ -98,7 +97,7 @@ Full operational instructions: [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md). Fu
 
 ## Material limits
 
-Static website scoring is not Lighthouse or an exhaustive accessibility/visual audit. Facts remain source quotations and safe templates constrain generated code; arbitrary model JavaScript is intentionally excluded. Email catalog languages are English, Hindi, Arabic, German, French and Japanese; other languages fall back to English catalog email text. There is no admin web dashboard. Owner notifications are stored in the database and Actions summaries, not sent as separate emails. Hosting billing/retention remains account-specific. External ambiguous actions can require operator reconciliation. An independent Base44 system cannot be locked by this repository: documented audience separation remains necessary.
+Static website scoring is not Lighthouse or an exhaustive accessibility/visual audit. Facts remain source quotations and safe templates constrain generated code; arbitrary model JavaScript is intentionally excluded. Email catalog languages are English, Hindi, Arabic, German, French and Japanese; other languages fall back to English catalog email text. There is no admin web dashboard. Owner notifications are stored in the database and Actions summaries, not sent as separate emails. Hosting billing/retention remains account-specific. External ambiguous actions can require operator reconciliation. The repository operates independently; Gmail live history checks and recipient-specific legal reviews remain necessary.
 
 ## Original tracked project structure (before discovery follow-up)
 

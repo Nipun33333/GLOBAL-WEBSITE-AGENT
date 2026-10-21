@@ -204,7 +204,7 @@ def test_imported_threads_survive_empty_database(session, tmp_path):
     path.write_text(
         json.dumps(
             {
-                "source": "Base44",
+                "source": "manual suppression export",
                 "exported_at": "2026-10-20",
                 "contacts": [
                     {"domain": "old.example", "email": "info@old.example", "gmail_thread_id": "old-thread"}
@@ -223,7 +223,6 @@ def test_imported_threads_survive_empty_database(session, tmp_path):
         json.dumps(
             {
                 "reviewed_by": "owner",
-                "base44_audience_exclusion_reference": "reference",
                 "history_export_complete": "false",
                 "suppression_export_complete": "false",
             }

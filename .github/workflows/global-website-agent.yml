@@ -12,8 +12,7 @@ jobs:
       github.repository == 'Nipun33333/GLOBAL-WEBSITE-AGENT' && github.run_attempt == 1 &&
       ((github.event_name == 'workflow_dispatch' &&
         github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
-        inputs.free_limits_reviewed && inputs.database_reviewed &&
-        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/free-overture-discovery')) ||
+        github.ref == 'refs/heads/main') ||
        (github.event_name == 'schedule' && github.ref == 'refs/heads/main' &&
         vars.AUTOMATION_ENABLED == 'true' && vars.UNIFIED_WORKFLOW_ENABLED == 'true' &&
         vars.FREE_LIMITS_REVIEWED == 'true' && vars.DATABASE_REVIEWED == 'true'))

@@ -356,7 +356,7 @@ def test_discovery_continues_when_no_business_backlog(
     pipe.discover = Mock(return_value=False)
     pipe.start("daily", "no-backlog")
     pipe.daily()
-    pipe.discover.assert_called_once_with(None)
+    pipe.discover.assert_called_once_with("US")
 
 
 

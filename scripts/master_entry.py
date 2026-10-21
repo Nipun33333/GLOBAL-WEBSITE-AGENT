@@ -88,6 +88,28 @@ def plan(env, actual_sha):
     return {"mode": mode, "country": country, "scheduled": scheduled, "revision": actual_sha, **capabilities}
 
 
+def safe_readonly_account_checks(settings):
+    """Metadata/identity only; no generation, deployment, draft or mail mutation."""
+    if os.getenv("LIVE_ACCOUNT_DIAGNOSTICS") != "true" or os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch":
+        return {}
+    import httpx
+
+    from website_agent import live_verification as live
+
+    checks = {}
+    try:
+        with httpx.Client(timeout=15, follow_redirects=False, trust_env=False) as client:
+            for name, fn in (
+                ("gemini", live.gemini_check),
+                ("netlify", live.netlify_check),
+                ("gmail", live.gmail_check),
+            ):
+                checks[name] = live.run_check(lambda fn=fn: fn(settings, client))
+    except Exception:
+        checks["status"] = "account_metadata_unavailable"
+    return checks
+
+
 def execute(selected):
     from website_agent import live_verification as live
     from website_agent.settings import Settings
@@ -129,7 +151,9 @@ def execute(selected):
                 reason = "connection_tls_or_configuration_unavailable"
             check = {"status": reason, "discovery_ready": False}
     if not check.get("discovery_ready"):
-        live.publish({"status": "blocked_database_preflight", "mode": mode, "database": check})
+        result = {"status": "blocked_database_preflight", "mode": mode, "database": check}
+        result.update(safe_readonly_account_checks(settings))
+        live.publish(result)
         return 2
     args = [sys.executable, "-m", "website_agent.cli", mode]
     if selected["country"]:

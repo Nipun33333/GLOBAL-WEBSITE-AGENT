@@ -69,6 +69,7 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - name: Execute approved operation
         env:
+          LIVE_ACCOUNT_DIAGNOSTICS: 'true'  # Owner-run metadata/identity only, no side effects.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}

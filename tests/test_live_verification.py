@@ -112,6 +112,19 @@ def test_invalid_pooler_urls_report_safe_reasons_without_secrets():
         assert "secret" not in str(raised.value)
 
 
+def test_supabase_ca_can_be_verified_from_owner_configured_file(monkeypatch, tmp_path):
+    root = tmp_path / "project-ca.pem"
+    root.write_text("fixture CA", encoding="utf-8")
+    monkeypatch.setenv("SUPABASE_CA_CERT_PATH", str(root))
+    assert live.database_sslrootcert() == str(root)
+    root.unlink()
+    with pytest.raises(live.CheckFailed) as exc:
+        live.database_sslrootcert()
+    assert exc.value.reason == "missing_supabase_ca_certificate"
+    monkeypatch.delenv("SUPABASE_CA_CERT_PATH")
+    assert live.database_sslrootcert() == live.certifi.where()
+
+
 def test_transaction_pooler_rejected_without_connection(monkeypatch, settings):
     settings.database_url = "postgresql+psycopg://fixture:secret@db.example:6543/postgres"
     factory = Mock()

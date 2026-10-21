@@ -15,6 +15,7 @@ import certifi
 import httpx
 from sqlalchemy import UniqueConstraint, create_engine, inspect, select, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 from website_agent.database import Base, Event, WorkflowRun, now
 from website_agent.gmail import SCOPES
@@ -121,7 +122,7 @@ def postgres_session_url(raw):
         if url.port not in {None, 5432} or not url.host or not url.username or not url.database:
             raise CheckFailed(reason="database_url_missing_required_parts")
         return url
-    except (TypeError, ValueError) as exc:
+    except (ArgumentError, TypeError, ValueError):
         raise CheckFailed(reason="invalid_database_url") from None
 
 

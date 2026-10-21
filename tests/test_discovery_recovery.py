@@ -63,7 +63,7 @@ class FixtureWeb:
             url,
             200,
             {"content-type": "text/html"},
-            "<title>Fixture Salon</title><h1>Fixture Salon</h1><p>New York and London</p>"
+            "<title>Fixture Salon</title><h1>Fixture Salon</h1><p>New York and Boston</p>"
             + f'<a href="mailto:contact@{urlsplit(url).hostname}">Contact</a>',
         )
 
@@ -156,7 +156,7 @@ def test_every_source_unavailable_persists_retry_and_circuit(session, settings, 
     reader = Mock(side_effect=unavailable("outage"))
     result = make(session, settings, reader).run()
     assert result["status"] == "deferred_provider_unavailable"
-    assert get_config(session, "discovery_task:worldwide")["next_at"]
+    assert get_config(session, "discovery_task:US")["next_at"]
     count = reader.call_count
     again = make(session, settings, reader).run()
     assert again["accepted"] == 0 and reader.call_count == count
@@ -234,20 +234,20 @@ def test_next_city_fallback(session, settings, discovery_setup):
     cfg.discovery.max_cities = 2
     cfg.locations.append(
         Location(
-            country="GB", city="London", timezone="Europe/London", language="en", bbox=[-0.2, 51.4, 0.0, 51.6]
+            country="US", city="Boston", timezone="America/New_York", language="en", bbox=[-71.19, 42.29, -70.98, 42.40]
         )
     )
 
     def reader(c, q, b):
         return (
-            batch([record(country="GB", city="London", lon=-0.1, lat=51.5)])
-            if q["city"] == "London"
+            batch([record(country="US", city="Boston", lon=-71.1, lat=42.34)])
+            if q["city"] == "Boston"
             else batch()
         )
 
     result = make(session, settings, reader).run()
     assert result["accepted"] == 1
-    assert session.scalar(select(Prospect)).country == "GB"
+    assert session.scalar(select(Prospect)).country == "US"
 
 
 def test_query_budget_and_resumed_checkpoint(session, settings, discovery_setup):
@@ -288,7 +288,7 @@ def test_interrupted_job_resumes_pending_candidates(session, settings, discovery
     first.web.fetch = fetch
     with pytest.raises(fault):
         first.run()
-    state = get_config(session, "discovery_task:worldwide")
+    state = get_config(session, "discovery_task:US")
     assert state["pending"]["index"] == 1
     session.expunge_all()
     next_run = make(session, settings, reader)
@@ -872,7 +872,7 @@ def test_target_keeps_pending_records_for_restart(session, settings, discovery_s
         return_value=batch([record(), record(provider_id="fixture-2", url="https://second.example")])
     )
     first = make(session, settings, reader).run()
-    state = get_config(session, "discovery_task:worldwide")
+    state = get_config(session, "discovery_task:US")
     assert first["accepted"] == 1 and first["pending_candidates"] == 1 and not state["complete"]
     engine = make(session, settings, Mock(side_effect=AssertionError("pending must survive")))
     engine.clock = lambda: AT + timedelta(hours=2)

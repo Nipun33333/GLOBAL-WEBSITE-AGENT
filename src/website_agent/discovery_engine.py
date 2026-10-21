@@ -176,6 +176,8 @@ class DiscoveryEngine:
             if not selected:
                 break
             queue, location = selected
+            if location.country != country:
+                raise Blocked("Out-of-market discovery selector returned a foreign location")
             visited.add((location.country, location.city))
             mapping = taxonomy.get("niches", {}).get(queue.niche)
             if not mapping:

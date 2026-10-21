@@ -63,7 +63,9 @@ def plan(env, actual_sha):
             raise ValueError("Country must be an ISO code")
     if mode not in MODES:
         raise ValueError("Unsupported mode")
-    if not one_click and any(env.get(k) != "true" for k in ("FREE_LIMITS_REVIEWED", "DATABASE_REVIEWED")):
+    if not (one_click or scheduled) and any(
+        env.get(k) != "true" for k in ("FREE_LIMITS_REVIEWED", "DATABASE_REVIEWED")
+    ):
         raise ValueError("Quota and database review required")
     if not scheduled and not one_click and mode != "diagnostics":
         phrase = (

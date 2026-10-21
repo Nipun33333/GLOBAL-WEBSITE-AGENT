@@ -349,6 +349,42 @@ def test_run_checks_three_candidates_and_selects_only_one_qualified_demo(
     pipe.generate.assert_called_once_with(candidates[2])
 
 
+def test_uk_only_pipeline_skips_old_foreign_drafts_and_leads(
+    session, settings, prospect, site, fakes
+):
+    from website_agent.security import Blocked
+
+    uk_config = settings.config()
+    prospect.status = "draft_ready"  # An old non-UK verified draft.
+    uk_prospect = Prospect(
+        name="Example Manchester Business",
+        domain="manchester.example",
+        url="https://manchester.example/",
+        country="GB",
+        city="Manchester",
+        timezone="Europe/London",
+        subdivision="ENG",
+        language="en",
+        niche="salons",
+        status="qualified",
+    )
+    session.add(uk_prospect)
+    session.commit()
+    pipe = Pipeline(session, settings, uk_config, ai=fakes.ai, web=fakes.web)
+    pipe.discover = Mock(side_effect=AssertionError("No discovery while UK queue exists"))
+    pipe.generate = Mock(return_value=None)
+    pipe.initial_outreach = Mock()
+    pipe.start("daily", "uk-only-queue")
+    pipe.daily()
+    pipe.discover.assert_not_called()
+    pipe.generate.assert_called_once_with(uk_prospect)
+    pipe.initial_outreach.assert_not_called()  # Prior US draft was not emailed.
+    with pytest.raises(Blocked, match="United Kingdom"):
+        pipe.daily("US")
+    with pytest.raises(Blocked, match="United Kingdom"):
+        pipe.discover("US")
+
+
 def test_discovery_continues_when_no_business_backlog(
     session, settings, config, fakes
 ):

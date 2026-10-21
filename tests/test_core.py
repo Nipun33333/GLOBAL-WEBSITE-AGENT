@@ -42,6 +42,26 @@ def enable(session, settings, prospect):
     session.commit()
 
 
+def test_standalone_eligibility_needs_no_external_history_import(
+    session, settings, prospect
+):
+    # An independently qualified business can pass without old platform tokens,
+    # audience attestations, or mandatory bulk contact history imports.
+    enable(session, settings, prospect)
+    assert get_config(session, "production_readiness") == {}
+    assert get_config(session, "gmail_history_import") == {}
+    allowed, reasons = eligible(
+        session, prospect, settings, datetime(2026, 10, 20, 15, tzinfo=UTC)
+    )
+    assert allowed and not reasons
+    # Stored opt-outs must still block this otherwise eligible recipient.
+    suppress(session, prospect.email, "unsubscribe", "verified customer request")
+    allowed, reasons = eligible(
+        session, prospect, settings, datetime(2026, 10, 20, 15, tzinfo=UTC)
+    )
+    assert not allowed and "suppressed" in reasons
+
+
 def test_normalization():
     assert domain("https://WWW.Example.COM:443/path") == "example.com"
     assert email_address(" INFO@EXAMPLE.COM ") == "info@example.com"

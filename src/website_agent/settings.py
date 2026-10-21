@@ -161,6 +161,15 @@ class Config(BaseModel):
     search_template: str = "{niche} {city} {country} official website"
     schedule_timezone: str = "UTC"
     schedule_hour: int = Field(3, ge=0, le=23)
+    schedule_hours: list[int] = Field(default_factory=list, max_length=4)
+
+    @model_validator(mode="after")
+    def validate_schedule_hours(self):
+        if self.schedule_hours != sorted(set(self.schedule_hours)):
+            raise ValueError("Schedule hours must be sorted and distinct")
+        if any(hour < 0 or hour > 23 for hour in self.schedule_hours):
+            raise ValueError("Schedule hours must be between 0 and 23")
+        return self
     research_hours: list[int] = [8, 20]
     discovery_provider: Literal["open_data", "brave", "licensed_json"] = "open_data"
     discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)

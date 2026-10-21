@@ -162,7 +162,7 @@ def test_actual_sent_verification_and_duplicate_prevention(session, settings, co
 
 
 @pytest.mark.parametrize("external,inbound", [(True, False), (False, True)])
-def test_presend_base44_and_inbound_blocks(
+def test_presend_gmail_history_and_inbound_blocks(
     session, settings, config, prospect, site, fakes, external, inbound
 ):
     enable(session, settings, prospect)

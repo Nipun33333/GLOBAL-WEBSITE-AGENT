@@ -75,6 +75,7 @@ class CheckFailed(Exception):
         "unsupported_database_driver",
         "transaction_pooler_not_supported",
         "database_url_missing_required_parts",
+        "missing_supabase_ca_certificate",
     }
 
     def __init__(self, http_status=None, provider_code=None, reason=None):
@@ -126,6 +127,18 @@ def postgres_session_url(raw):
         raise CheckFailed(reason="invalid_database_url") from None
 
 
+
+def database_sslrootcert():
+    """Use the owner-provided Supabase project CA when configured; never skip TLS validation."""
+    certificate = os.environ.get("SUPABASE_CA_CERT_PATH", "")
+    if certificate:
+        path = Path(certificate)
+        if not path.is_file() or not 0 < path.stat().st_size <= 65536:
+            raise CheckFailed(reason="missing_supabase_ca_certificate")
+        return str(path)
+    return certifi.where()
+
+
 @contextmanager
 def readonly_database(settings):
     url = postgres_session_url(settings.database_url)
@@ -135,7 +148,7 @@ def readonly_database(settings):
         connect_args={
             "connect_timeout": 10,
             "sslmode": "verify-full",
-            "sslrootcert": certifi.where(),
+            "sslrootcert": database_sslrootcert(),
         },
     )
     try:

@@ -20,7 +20,7 @@
 | `scheduler.py` | Worldwide country/city/niche fairness, holidays/business days |
 | `copy.py` | Trusted multilingual copy catalog, no fabricated commercial claims |
 | `outreach.py` | Message state machine, sends, followups, reply classification/suppression |
-| `imports.py` | Base44 exports, Gmail history, eligibility and validation imports |
+| `imports.py` | Optional external history, Gmail Sent history, eligibility and review imports |
 | `pipeline.py` | Durable vertical slice, retry/resume stages, owner events |
 | `reporting.py` | Per-run/weekly summaries and Actions output |
 | `cli.py` | Operational commands, migration application, safe error boundary |

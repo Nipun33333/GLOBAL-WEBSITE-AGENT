@@ -46,7 +46,7 @@ def plan(env, actual_sha):
         approved = (env.get("SCHEDULED_MODES") or "daily").split(",")
         if mode not in approved:
             raise ValueError("Scheduled mode not owner approved")
-        country = ""
+        country = "GB"
     else:
         permitted_refs = ({"refs/heads/main"} if one_click else {
             "refs/heads/main", "refs/heads/feature/free-overture-discovery"
@@ -58,7 +58,7 @@ def plan(env, actual_sha):
         if not one_click and env.get("REVIEWED_COMMIT") != actual_sha:
             raise ValueError("Reviewed revision mismatch")
         mode = "daily" if one_click else env.get("AGENT_MODE")
-        country = "" if one_click else env.get("AGENT_COUNTRY", "").strip().upper()
+        country = "GB" if one_click else env.get("AGENT_COUNTRY", "").strip().upper()
         if country and not re.fullmatch(r"[A-Z]{2}", country):
             raise ValueError("Country must be an ISO code")
     if mode not in MODES:
@@ -69,7 +69,7 @@ def plan(env, actual_sha):
         raise ValueError("Quota and database review required")
     if not scheduled and not one_click and mode != "diagnostics":
         phrase = (
-            "APPROVE_US_DISCOVERY_WRITES"
+            "APPROVE_GB_DISCOVERY_WRITES"
             if mode == "discover"
             else f"APPROVE_{mode.upper().replace('-', '_')}_WRITES"
         )
@@ -77,8 +77,8 @@ def plan(env, actual_sha):
             raise ValueError("Separate write approval required")
     if country and mode not in {"daily", "diagnostics", "discover"}:
         raise ValueError("Country filtering is supported only for daily/discover")
-    if mode in {"diagnostics", "discover"} and country not in {"", "US"}:
-        raise ValueError("Initial verification supports US only")
+    if country and country != "GB":
+        raise ValueError("Business discovery and operations are limited to United Kingdom (GB)")
     allowed = CAPABILITIES.get(mode, set())
     capabilities = {
         k: k in allowed and env.get("ALLOW_" + k.upper()) == "true"
@@ -408,7 +408,7 @@ def execute(selected):
 
             recovery = connection.execute(
                 select(Configuration.value).where(
-                    Configuration.key == "discovery_task:worldwide"
+                    Configuration.key == "discovery_task:GB"
                 )
             ).scalar()
             if recovery:

@@ -134,6 +134,19 @@ def test_rotation_fair_and_no_repeat(session, config):
     assert len(session.scalars(select(LocationQueue)).all()) == len(eligible_locations) * 12
 
 
+def test_single_opportunity_configuration_and_two_ist_slots():
+    from pathlib import Path
+
+    import yaml
+
+    data = yaml.safe_load(Path("config/settings.yml").read_text(encoding="utf-8"))
+    assert data["limits"]["inspected"] == 1
+    assert data["limits"]["qualified"] == 1
+    assert data["limits"]["max_followups"] == 0
+    assert data["schedule_timezone"] == "Asia/Kolkata"
+    assert data["schedule_hours"] == [15, 21]
+
+
 def test_global_rotation_skips_closed_timezones_when_another_country_is_open(session, config):
     from website_agent.database import LocationQueue
 

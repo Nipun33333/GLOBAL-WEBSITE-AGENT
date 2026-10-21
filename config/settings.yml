@@ -23,9 +23,17 @@ provider_agreement_reference: ''
 storage_and_outreach_use_authorized: false
 discovery_endpoint: ''
 search_template: '{niche} {city} {country} official website'
-# Add verified current pricing per million tokens for each enabled model.
-# Example shape only: {gemini-model: {input_per_million: 0.0, output_per_million: 0.0}}
-model_prices: {}
+# Public Gemini API STANDARD FREE-TIER text-token pricing reviewed 2026-10-21.
+# These are reference prices ONLY. They do NOT authorize an account to use a model.
+# Actual zero-cost generation still requires a current per-model authorization in
+# gemini.usage_authorizations, successful account metadata, and remaining free quota.
+# Paid-tier prices are not mapped; unknown/paid capacity MUST defer safely.
+# Source: https://ai.google.dev/gemini-api/docs/pricing
+model_prices:
+  gemini-3.8-flash: {input_per_million: 0.0, output_per_million: 0.0}
+  gemini-3.6-flash: {input_per_million: 0.0, output_per_million: 0.0}
+  gemini-3.5-flash-lite: {input_per_million: 0.0, output_per_million: 0.0}
+  gemini-3.1-flash-lite: {input_per_million: 0.0, output_per_million: 0.0}
 # Official capability catalog is bounded and expires; account eligibility is separate.
 gemini:
   automatic_fallback: true

@@ -93,15 +93,12 @@ def test_exact_cron_routing_and_disabled_automation(cron, mode):
     )
     result = master.plan(e, SHA)
     assert result["mode"] == mode and result["scheduled"] and not result["sending"]
-    for key in (
-        "AUTOMATION_ENABLED",
-        "UNIFIED_WORKFLOW_ENABLED",
-        "FREE_LIMITS_REVIEWED",
-        "DATABASE_REVIEWED",
-        "SCHEDULED_MODES",
-    ):
+    for key in ("AUTOMATION_ENABLED", "UNIFIED_WORKFLOW_ENABLED", "SCHEDULED_MODES"):
         with pytest.raises(ValueError):
             master.plan({**e, key: "false"}, SHA)
+    # A valid scheduled event no longer fabricates owner billing/database reviews.
+    unreviewed = {**e, "FREE_LIMITS_REVIEWED": "false", "DATABASE_REVIEWED": "false"}
+    assert master.plan(unreviewed, SHA)["scheduled"]
     with pytest.raises(ValueError):
         master.plan({**e, "AGENT_CRON": "* * * * *"}, SHA)
 
@@ -131,11 +128,16 @@ def test_owner_manual_workflow_enables_sending_but_preserves_policy_checks():
         Loader=yaml.BaseLoader,
     )
     environment = workflow["jobs"]["agent"]["env"]
-    for name in ("ALLOW_SENDING", "ENABLE_SENDING"):
-        expression = environment[name]
-        assert "github.event_name == 'workflow_dispatch'" in expression
-        assert f"vars.{name} || 'false'" in expression
-    assert "github.actor == github.repository_owner" in workflow["jobs"]["agent"]["if"]
+    for name in (
+        "AUTOMATION_ENABLED", "UNIFIED_WORKFLOW_ENABLED", "ALLOW_GENERATION",
+        "ALLOW_DEPLOYMENT", "ALLOW_DRAFTS", "ALLOW_SENDING", "ENABLE_SENDING",
+    ):
+        assert environment[name].startswith("true")
+    assert environment["ENABLE_ROUTINE_REPLIES"] == "false"
+    job_condition = workflow["jobs"]["agent"]["if"]
+    assert "github.actor == github.repository_owner" in job_condition
+    assert "vars.FREE_LIMITS_REVIEWED" not in job_condition
+    assert "vars.DATABASE_REVIEWED" not in job_condition
     assert callable(eligible)
 
 
@@ -154,7 +156,8 @@ def test_single_definition_crons_dependencies_and_secret_boundary():
     assert w["on"]["workflow_dispatch"] == ""  # No owner input form.
     job = w["jobs"]["agent"]
     assert job["concurrency"] == {"group": "global-website-agent-runtime", "cancel-in-progress": "false"}
-    assert "UNIFIED_WORKFLOW_ENABLED" in job["if"]
+    assert "github.ref == 'refs/heads/main'" in job["if"]
+    assert "github.event_name == 'schedule'" in job["if"]
     assert "uses" not in job and w["permissions"] == {"contents": "read"}
     steps = job["steps"]
     pre = next(i for i, s in enumerate(steps) if s.get("id") == "preflight")

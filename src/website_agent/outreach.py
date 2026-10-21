@@ -235,7 +235,7 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
     }
     if gmail.prior_contact(prospect.email, own_ids):
         suppress(session, prospect.email, "prior_external_contact", "Verified Gmail Sent scan")
-        raise Blocked("Existing Gmail/Base44 correspondence; sending blocked")
+        raise Blocked("Existing Gmail correspondence; sending blocked")
     # Any inbound before a commercial send stops it, including replies outside known threads.
     inbound = list(gmail.incoming(prospect.email))
     if inbound and message.kind != "acknowledgment":

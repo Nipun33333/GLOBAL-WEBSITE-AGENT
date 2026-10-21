@@ -149,6 +149,27 @@ def test_one_initial_send_per_run_guard_does_not_call_integrations(session, sett
     assert pipe._gmail is None and pipe._ai is None and pipe._hosting is None
 
 
+def test_owner_reviewed_free_gemini_models_are_bounded(settings):
+    from datetime import date
+
+    cfg = settings.config()
+    assert cfg.limits.ai_requests_daily == 12
+    assert not cfg.gemini.allow_paid_fallback
+    exact_models = {
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+    }
+    assert set(cfg.gemini.usage_authorizations) == exact_models
+    for model, authorization in cfg.gemini.usage_authorizations.items():
+        assert authorization.tier == "free"
+        assert authorization.expires_on == date(2026, 11, 21)
+        assert cfg.model_prices[model] == {
+            "input_per_million": 0.0, "output_per_million": 0.0
+        }
+
+
 def test_single_opportunity_configuration_and_two_ist_slots():
     from pathlib import Path
 

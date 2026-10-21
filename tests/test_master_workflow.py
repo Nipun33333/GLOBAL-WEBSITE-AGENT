@@ -228,6 +228,29 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert secret not in json.dumps(result)
 
 
+def test_persisted_discovery_retry_is_not_a_workflow_crash():
+    evidence = {
+        "persisted_status": "deferred_resource_limit",
+        "discovery": {
+            "status": "deferred_resource_limit",
+            "reason": "waiting_for_persisted_retry",
+            "next_at": "2026-10-21T20:16:35+00:00",
+        },
+    }
+    counts = {"failed_stages": 0, "sites": 0, "sent": 0}
+    assert master.eligible_deferred_success(2, "daily", counts, evidence)
+    assert not master.eligible_deferred_success(2, "discover", counts, evidence)
+    assert not master.eligible_deferred_success(1, "daily", counts, evidence)
+    assert not master.eligible_deferred_success(2, "daily", {"failed_stages": 1}, evidence)
+    assert not master.eligible_deferred_success(
+        2, "daily", counts,
+        {**evidence, "discovery": {**evidence["discovery"], "next_at": None}},
+    )
+    assert not master.eligible_deferred_success(
+        2, "daily", counts, {"discovery": evidence["discovery"]}
+    )
+
+
 def test_discovery_diagnostics_allow_only_safe_status_reason_and_counts():
     raw = {
         "status": "deferred_resource_limit",

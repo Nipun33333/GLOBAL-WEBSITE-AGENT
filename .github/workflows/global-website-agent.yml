@@ -1,47 +1,6 @@
 name: Global Website Agent
 on:
-  workflow_dispatch:
-    inputs:
-      mode:
-        type: choice
-        options: [diagnostics, discover, daily, replies, followups, report, reconcile, live-smoke]
-        default: diagnostics
-      country:
-        description: 'Configured ISO country; blank rotates globally. Initial discover supports US only.'
-        type: string
-        default: ''
-      reviewed_commit:
-        description: 'Full reviewed branch-tip SHA (required before loading credentials)'
-        type: string
-        required: true
-      free_limits_reviewed:
-        description: 'Included Actions/storage/provider quotas checked; no paid overage authorized'
-        type: boolean
-        default: false
-      database_reviewed:
-        description: 'Existing DATABASE_URL is the intended agent database, TLS/direct/session mode reviewed'
-        type: boolean
-        default: false
-      write_approval:
-        description: 'Discover: APPROVE_US_DISCOVERY_WRITES; other writes: APPROVE_<MODE>_WRITES (use LIVE_SMOKE)'
-        type: string
-        default: ''
-      allow_generation:
-        description: 'Separately authorize bounded Gemini requests with approved model prices/eligibility'
-        type: boolean
-        default: false
-      allow_deployment:
-        description: 'Separately authorize Netlify preview deployment within included capacity'
-        type: boolean
-        default: false
-      allow_drafts:
-        description: 'Separately authorize Gmail draft creation; does not authorize sending'
-        type: boolean
-        default: false
-      request_sending:
-        description: 'Future separately reviewed sending; ENABLE_SENDING and all application gates also required'
-        type: boolean
-        default: false
+  workflow_dispatch:  # One-click owner dispatch; no form inputs.
   schedule:
     - cron: '30 9 * * *'
     - cron: '30 15 * * *'

@@ -241,6 +241,42 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
         ("secret but unknown error", "connection_tls_or_configuration_unavailable"),
     ],
 )
+def test_discovery_diagnostics_allow_only_safe_status_reason_and_counts():
+    raw = {
+        "status": "deferred_resource_limit",
+        "reason": "time_budget",
+        "next_at": "2026-10-22T09:00:00+00:00",
+        "accepted": 0,
+        "requests": 28,
+        "bytes": 8227416,
+        "businesses_inserted": 0,
+        "fallback_layers_attempted": ["overture_aws", "SECRET-PRIVATE-ENDPOINT"],
+        "recipient": "private@example.com",
+        "url": "https://private.example.com",
+        "contact": {"name": "PRIVATE PERSON"},
+        "rejection_reasons": {"private@example.com": 1},
+    }
+    safe = master.safe_discovery_details(raw)
+    assert safe["status"] == "deferred_resource_limit"
+    assert safe["reason"] == "time_budget"
+    assert safe["next_at"] == raw["next_at"]
+    assert safe["requests"] == 28
+    assert safe["fallback_layers_attempted"] == ["overture_aws"]
+    assert "private" not in json.dumps(safe).lower()
+
+
+def test_discovery_diagnostics_reject_untrusted_labels_and_values():
+    raw = {
+        "status": "done: private@example.com",
+        "reason": "password=private",
+        "next_at": "javascript:alert(1)",
+        "requests": -1,
+        "accepted": True,
+        "bytes": 10**16,
+    }
+    assert master.safe_discovery_details(raw) == {}
+
+
 def test_database_error_classes_never_echo_private_values(private_error, expected):
     classified = master.classify_database_error(RuntimeError(private_error))
     assert classified == expected

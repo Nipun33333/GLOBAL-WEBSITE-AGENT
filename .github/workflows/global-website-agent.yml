@@ -36,7 +36,7 @@ jobs:
       ALLOW_DEPLOYMENT: 'true'
       ALLOW_DRAFTS: 'true'
       ALLOW_SENDING: 'true'  # Recipient compliance checks remain mandatory.
-      ENABLE_SENDING: 'true'  # Sends only after verified site + country/Base44 checks.
+      ENABLE_SENDING: 'true'  # Sends only after verified site + country and Gmail deduplication checks.
       ENABLE_ROUTINE_REPLIES: 'false'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

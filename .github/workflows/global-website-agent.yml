@@ -44,7 +44,7 @@ on:
         default: false
   schedule:
     - cron: '30 9 * * *'
-    - cron: '7,37 * * * *'
+    - cron: '30 15 * * *'
     - cron: '42 * * * *'
     - cron: '23 4 * * 1'
 permissions:

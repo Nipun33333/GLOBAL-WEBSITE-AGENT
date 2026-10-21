@@ -294,6 +294,34 @@ def test_vertical_slice_draft_only_and_resume(session, settings, config, fakes, 
     assert hosting.create.call_count == 1 and fakes.gmail.drafts == 1
 
 
+
+def test_queued_verified_business_is_processed_before_another_discovery(
+    session, settings, config, fakes, prospect
+):
+    # Existing business records should not spend another five minutes on Overture.
+    discover = Mock(side_effect=AssertionError("Must process backlog first"))
+    pipe = Pipeline(session, settings, config, ai=fakes.ai, web=fakes.web)
+    pipe.discover = discover
+    pipe.generate = Mock(return_value=None)  # No external generation in this regression.
+    pipe.start("daily", "backlog-first")
+    pipe.daily()
+    discover.assert_not_called()
+    pipe.generate.assert_called_once_with(prospect)
+    assert pipe.run.summary["discovery_skipped"] == 1
+
+
+def test_discovery_continues_when_no_business_backlog(
+    session, settings, config, fakes
+):
+    pipe = Pipeline(session, settings, config, ai=fakes.ai, web=fakes.web)
+    pipe.discover = Mock(return_value=False)
+    pipe.start("daily", "no-backlog")
+    pipe.daily()
+    pipe.discover.assert_called_once_with(None)
+
+
+
+
 @pytest.mark.browser
 def test_real_chromium_mobile_layout(fakes):
     from urllib.parse import urlsplit

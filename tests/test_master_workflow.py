@@ -22,6 +22,16 @@ spec.loader.exec_module(master)
 SHA = "a" * 40
 
 
+def test_outreach_reason_summary_never_exports_untrusted_fields():
+    events = [
+        {"reasons": ["suppressed", "suppressed", "unverified_country_policy", "person@example.test"]},
+        {"reasons": ["suppressed", {"secret": "do-not-export"}], "recipient": "person@example.test"},
+        {"reasons": "private-sql-error"},
+        None,
+    ]
+    assert master.safe_outreach_block_counts(events) == {"suppressed": 2, "unverified_country_policy": 1}
+
+
 def env(**changes):
     return {
         "GITHUB_REPOSITORY": "Nipun33333/GLOBAL-WEBSITE-AGENT",
@@ -401,7 +411,8 @@ def test_empty_schema_bootstrap_rejects_schedules_before_db_access(monkeypatch):
 def test_empty_schema_bootstrap_never_migrates_existing_tables(monkeypatch, settings):
     from contextlib import contextmanager
 
-    from website_agent import cli, live_verification as live
+    from website_agent import cli
+    from website_agent import live_verification as live
 
     monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
     monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
@@ -435,7 +446,8 @@ def test_empty_schema_bootstrap_initializes_once_and_uses_verified_tls(
 
     import sqlalchemy
 
-    from website_agent import cli, database, live_verification as live
+    from website_agent import cli, database
+    from website_agent import live_verification as live
 
     settings.database_url = (
         "postgresql://postgres.project:fixture-password@pooler.example:5432/postgres"
@@ -476,8 +488,8 @@ def test_empty_schema_bootstrap_initializes_once_and_uses_verified_tls(
 def test_one_click_missing_database_secret_is_reported_without_connection_attempt(
     monkeypatch, settings
 ):
-    from website_agent import settings as settings_module
     from website_agent import live_verification as live
+    from website_agent import settings as settings_module
 
     settings.database_url = ""
     monkeypatch.setattr(settings_module, "Settings", lambda **_: settings)

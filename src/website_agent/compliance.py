@@ -7,6 +7,15 @@ from website_agent.database import CountryPolicy, Suppression
 from website_agent.scheduler import contact_time
 from website_agent.security import domain, email_address
 
+SEND_BLOCK_REASONS = frozenset({
+    "sending_disabled", "missing_sender_name", "missing_sender_email", "missing_reply_to",
+    "missing_sender_postal_address", "missing_owner_email", "no_verified_business_email",
+    "contact_not_verified", "suppressed", "prospect_stopped", "reply_received",
+    "unverified_country_policy", "insufficient_legal_basis", "eligibility_expired",
+    "eligibility_expiry_required", "contact_type_not_permitted", "invalid_contact_hours",
+    "outside_local_contact_window",
+})
+
 
 class Policy(BaseModel):
     enabled: bool = False

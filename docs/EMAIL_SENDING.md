@@ -1,10 +1,40 @@
 # Real UK business email sending
 
+This repository uses your existing Gmail OAuth connection, including a personal
+Gmail mailbox. No paid email provider has been added. The API can create real drafts
+and send real messages, but a configured API connection is not permission to contact
+every discovered business.
+
+Email preparation now uses the trusted demo-offer template directly. Gemini remains
+in use for research/design; a model outage no longer prevents preparing an email for
+an already verified demo. Existing drafts keep their original content and digest.
+
+## What the setup can and cannot fix
+
+`OUTREACH_AUTHORIZATION_JSON` is an **optional application configuration**, not a
+government certificate, a Gmail credential, or a guarantee of compliance. Existing
+policy-file/database imports remain supported. Do not invent consent, reviewer
+details or references just to make a send check pass.
+
+Under [ICO's UK B2B guidance](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/business-to-business-marketing/),
+corporate subscribers and sole traders have different rules; personal data also
+raises UK GDPR obligations. Separately, [Gmail's program policy](https://support.google.com/mail/answer/16734397)
+prohibits spam and unsolicited commercial mail. A corporate UK policy record does
+not override Gmail's provider terms. An unsolicited first-contact offer cannot be
+made provider-compliant simply by changing a flag or sending it manually.
+
+This PR repairs preparation and reporting; it does not claim live, compliant cold
+outreach has been activated. Actual delivery and recipient permission have not been
+verified. The one-email-per-run limit is an operational cap, not a legal exemption.
+
 The daily workflow already uses the real Gmail API with sending enabled. Gmail
 credentials alone do not authorize a recipient. The checked-in GB policy is
 disabled, and discovered public addresses do not create recipient eligibility.
 
 ## One-time private configuration
+
+Use this optional route only when you already have real reviewed records. You do
+not need this secret to connect Gmail or prepare a demo draft.
 
 Keep the existing Gmail and sender secrets. Add `OUTREACH_AUTHORIZATION_JSON` in
 the repository's Actions secrets or the `agent-runtime` environment. The JSON
@@ -72,7 +102,11 @@ Inspect `agent-result-<run>-1` / the run summary:
 - `outreach_readiness` identifies the policy source, policy switch and private
   recipient count without exposing addresses or review records.
 - `run_diagnostics.stage_event_counts.outreach_blocked` counts policy-blocked
-  send attempts. Detailed reason codes remain in the private database events.
+  send attempts. `run_diagnostics.outreach_block_reasons` lists fixed reason codes
+  and counts for this run without recipient data. `unverified_country_policy`
+  means policy configuration is incomplete; `insufficient_legal_basis` means a
+  recipient record is missing/incompatible; `outside_local_contact_window`
+  means the recipient's configured local sending window is closed.
 - `run_diagnostics.stage_event_counts.email_sent` records sends in that run;
   `aggregate_counts.sent` covers the last day and can include other runs.
 

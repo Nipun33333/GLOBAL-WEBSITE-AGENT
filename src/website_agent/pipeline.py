@@ -328,7 +328,7 @@ class Pipeline:
             )
             return
         self.settings.require("sender_name", "sender_email", "reply_to", "sender_postal_address")
-        message = prepare(self.session, prospect, site, self.settings, self.ai)
+        message = prepare(self.session, prospect, site, self.settings)
         old = message.state
         create_draft(self.session, self.gmail, self.settings, message)
         if message.state == "drafted":
@@ -495,7 +495,7 @@ class Pipeline:
         )
         if not site:
             return
-        ack = prepare(self.session, prospect, site, self.settings, self.ai, "acknowledgment")
+        ack = prepare(self.session, prospect, site, self.settings, kind="acknowledgment")
         create_draft(self.session, self.gmail, self.settings, ack)
         if self.settings.enable_routine_replies:
             send_controlled(self.session, self.gmail, self.settings, self.config, ack, self.verify)
@@ -515,7 +515,7 @@ class Pipeline:
                 )
                 if not site:
                     continue
-                message = prepare(self.session, prospect, site, self.settings, self.ai, "followup", sequence)
+                message = prepare(self.session, prospect, site, self.settings, kind="followup", sequence=sequence)
                 row = self.session.scalar(
                     select(Followup).where(Followup.prospect_id == prospect.id, Followup.sequence == sequence)
                 )

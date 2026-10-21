@@ -183,6 +183,20 @@ def capability_readiness(selected, config):
     return capabilities
 
 
+def safe_outreach_block_counts(events):
+    """Export only fixed reason codes and counts, never recipient/event payloads."""
+    from website_agent.compliance import SEND_BLOCK_REASONS
+
+    counts = {}
+    for event in events:
+        reasons = event.get("reasons") if isinstance(event, dict) else None
+        if not isinstance(reasons, list):
+            continue
+        for reason in set(r for r in reasons if isinstance(r, str) and r in SEND_BLOCK_REASONS):
+            counts[reason] = counts.get(reason, 0) + 1
+    return counts
+
+
 def eligible_deferred_success(code, mode, counts, run_diagnostics):
     """Only an independently persisted, stage-error-free retry can end cleanly."""
     discovery = run_diagnostics.get("discovery", {})
@@ -407,6 +421,12 @@ def execute(selected):
                 run_diagnostics["stage_event_counts"] = {
                     name: int(count) for name, count in stage_rows if name in stage_names
                 }
+                blocked_events = connection.execute(
+                    select(Event.details).where(
+                        Event.run_id == exact_run.id, Event.event == "outreach_blocked"
+                    )
+                ).scalars()
+                run_diagnostics["outreach_block_reasons"] = safe_outreach_block_counts(blocked_events)
             # Recovery journals also record why a fully bounded run deferred.
             from website_agent.database import Configuration
 

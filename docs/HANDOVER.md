@@ -1,5 +1,8 @@
 # Implementation handover — updated 21 October 2026
 
+**Current unified-workflow update:** PR #8 registers Global Website Agent; PR #6 contains the single-workflow implementation and remains unmerged. All automation/sending controls remain disabled. Gemini has bounded exact-model fallback with empty account authorization/pricing maps, so live generation remains blocked. See [current readiness](FINAL_READINESS.md), [control panel](UNIFIED_WORKFLOW.md), [Gemini policy](GEMINI_FALLBACK.md) and [migration sequence](WORKFLOW_MIGRATION.md). Older workflow inventories and validation counts below are historical, not current activation instructions.
+
+
 Implemented and committed in **Nipun33333/GLOBAL-WEBSITE-AGENT** only. The Base44 system and other repositories were not accessed or modified. No live business emails were sent, no real deployment URLs were invented, and no paid resources or billing were activated.
 
 The current feature-branch follow-up is documented in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md): spatial STAC selection, real bounded Parquet reads, recovery fixes and current validation. The historical results below remain historical. PR #6 remains unmerged.

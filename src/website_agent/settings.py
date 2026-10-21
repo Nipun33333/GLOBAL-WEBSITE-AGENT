@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -92,6 +93,67 @@ class Location(BaseModel):
         return self
 
 
+class ModelAuthorization(BaseModel):
+    tier: Literal["free", "paid"]
+    review_reference: str = Field(min_length=1, max_length=200)
+    expires_on: date
+
+
+class ModelCapability(BaseModel):
+    structured_output: bool = True
+    input_tokens: int = Field(1_048_576, ge=1)
+    output_tokens: int = Field(65_536, ge=1)
+    active: bool = True
+    review_reference: str = Field(min_length=1)
+    review_expires_on: date
+
+
+class GeminiPolicy(BaseModel):
+    automatic_fallback: bool = True
+    prefer_free_tier: bool = True
+    allow_paid_fallback: bool = False
+    max_model_attempts: int = Field(3, ge=1, le=5)
+    retries_per_model: int = Field(2, ge=0, le=2)
+    cooldown_seconds: int = Field(900, ge=60, le=86400)
+    max_output_tokens: int = Field(8192, ge=256, le=8192)
+    fallback_models: list[str] = Field(
+        default_factory=lambda: [
+            "gemini-3.6-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+        ],
+        max_length=7,
+    )
+    capabilities: dict[str, ModelCapability] = Field(
+        default_factory=lambda: {
+            name: ModelCapability(
+                review_reference="https://ai.google.dev/gemini-api/docs/models/" + name,
+                review_expires_on=date(2027, 1, 19),
+            )
+            for name in [
+                "gemini-3.8-flash",
+                "gemini-3.6-flash",
+                "gemini-3.5-flash-lite",
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+            ]
+        }
+    )
+    usage_authorizations: dict[str, ModelAuthorization] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def exact_models(self):
+        import re
+
+        names = [*self.fallback_models, *self.capabilities, *self.usage_authorizations]
+        if any(not re.fullmatch(r"gemini-[a-z0-9]+(?:[.-][a-z0-9]+)*", name) for name in names):
+            raise ValueError("Use exact Gemini model IDs, never wildcards")
+        if len(self.capabilities) > 20 or len(set(self.fallback_models)) != len(self.fallback_models):
+            raise ValueError("Bounded unique model catalog required")
+        return self
+
+
 class Config(BaseModel):
     limits: Limits = Field(default_factory=Limits)
     locations: list[Location]
@@ -105,6 +167,7 @@ class Config(BaseModel):
     provider_agreement_reference: str = ""
     storage_and_outreach_use_authorized: bool = False
     discovery_endpoint: str = ""
+    gemini: GeminiPolicy = Field(default_factory=GeminiPolicy)
     model_prices: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
@@ -126,6 +189,9 @@ class Settings(BaseSettings):
     reply_to: str = ""
     sender_postal_address: str = ""
     owner_email: str = ""
+    enable_generation: bool = False
+    enable_deployment: bool = False
+    enable_drafts: bool = False
     enable_sending: bool = False
     enable_routine_replies: bool = False
     config_path: str = "config/settings.yml"

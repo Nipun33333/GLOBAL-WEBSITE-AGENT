@@ -2,7 +2,7 @@
 
 A Python application for global business discovery, evidence-based website qualification, safe website concept generation, verified HTTPS previews, and controlled Gmail outreach. PostgreSQL is the durable source of truth; GitHub Actions runs it while your laptop is off.
 
-**Deployment status: public AWS/Azure discovery reads and offline safeguards verified; credentialed integrations await owner-approved diagnostics.** The existing 12 GitHub Secrets are reused without local copying. Manual workflow registration PR #7 is merged; feature PR #6 remains open. No business emails have been sent, no paid services enabled, and the existing Base44 system has not been accessed or changed.
+**Deployment status: public AWS/Azure discovery reads and offline safeguards verified; credentialed integrations await owner-approved diagnostics.** The existing 12 GitHub Secrets are reused without local copying. Unified workflow registration PR #8 is merged; feature PR #6 remains open. The feature consolidates seven definitions into one control panel; main retains legacy definitions until the implementation is separately merged. No business emails have been sent, no paid services enabled, and the existing Base44 system has not been accessed or changed.
 
 ## Start here
 
@@ -17,12 +17,16 @@ uv sync --frozen --extra dev
 uv run playwright install chromium
 uv run pytest
 uv run website-agent doctor
-# After configuring .env with a dedicated PostgreSQL database:
-uv run website-agent migrate
-uv run website-agent daily
+# Production changes require separate owner approval; use the reviewed Actions diagnostics first.
 ```
 
 `doctor` lists missing setting names without displaying secret values. `doctor --live` reads external account metadata but persists model-check state in the database. For strictly read-only database diagnostics using existing GitHub Secrets, follow [manual live verification](docs/MANUAL_LIVE_VERIFICATION.md). `live-smoke` performs explicit generation, deployment, browser checks, and a Gmail draft addressed to the owner; it never sends email. Mock tests never call live commercial APIs.
+
+## Unified operations and Gemini fallback
+
+Use **Actions → Global Website Agent → Run workflow** after reviewing the current feature SHA. Modes: diagnostics, discover, daily, replies, followups, report, reconcile and live-smoke. Schedules retain the four original UTC cadences and remain disabled. Read [control-panel approvals](docs/UNIFIED_WORKFLOW.md) and [migration order](docs/WORKFLOW_MIGRATION.md). No workflow automatically migrates the database.
+
+[Gemini fallback](docs/GEMINI_FALLBACK.md) selects only reviewed exact models, checks account metadata/token limits, honors persistent quota pauses and retains provenance. Generation, deployment and draft creation now default disabled independently of sending. Account usage authorizations/prices remain empty; no free eligibility is invented. The default candidate order is 3.8 Flash → 3.6 Flash → 3.5 Flash-Lite → eligible 2.5 Flash/Flash-Lite; 3.7 aliases 3.8 and is not an independent fallback.
 
 ## Zero-key discovery
 

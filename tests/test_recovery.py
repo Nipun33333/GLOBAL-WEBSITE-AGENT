@@ -110,7 +110,9 @@ def test_missing_ai_does_not_block_later_unsubscribe(session, settings, config, 
 def test_quota_pause_survives_new_process(session, settings, config):
     set_config(session, "gemini_quota_pause", {"until": (datetime.now(UTC) + timedelta(hours=1)).isoformat()})
     client = Mock()
-    client.models.get.return_value = SimpleNamespace(supported_actions=["generateContent"])
+    client.models.get.return_value = SimpleNamespace(
+        supported_actions=["generateContent"], input_token_limit=1048576, output_token_limit=65536
+    )
     with pytest.raises(Blocked, match="pause"):
         Gemini(settings, config, session, client).generate("hello", {}, EmailCopy)
     client.models.generate_content.assert_not_called()
@@ -295,7 +297,7 @@ def test_capacity_is_deferred_not_workflow_failure(session, settings, config):
 
     pipe.step("generation", limited)
     pipe.finish()
-    assert pipe.run.status == "completed"
+    assert pipe.run.status == "deferred_resource_limit"
     assert pipe.run.summary["capacity_deferred"] == 1
 
 

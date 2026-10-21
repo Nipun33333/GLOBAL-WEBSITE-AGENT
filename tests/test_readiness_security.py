@@ -57,7 +57,9 @@ def test_gemini_missing_generation_capability_fails_closed(session, settings, co
 @pytest.mark.parametrize("price", [float("nan"), float("inf"), -1])
 def test_nonfinite_or_negative_model_price_never_generates(session, settings, config, price):
     client = Mock()
-    client.models.get.return_value = SimpleNamespace(supported_actions=["generateContent"])
+    client.models.get.return_value = SimpleNamespace(
+        supported_actions=["generateContent"], input_token_limit=1048576, output_token_limit=65536
+    )
     config.model_prices = {settings.gemini_model: {"input_per_million": price, "output_per_million": 0}}
     with pytest.raises(Blocked, match="prices"):
         Gemini(settings, config, session, client).generate("fixture", {}, EmailCopy)

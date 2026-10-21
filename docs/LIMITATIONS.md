@@ -1,5 +1,8 @@
 # Known limitations and production blockers
 
+**Current unified-workflow update:** PR #8 registers Global Website Agent; PR #6 contains the single-workflow implementation and remains unmerged. All automation/sending controls remain disabled. Gemini has bounded exact-model fallback with empty account authorization/pricing maps, so live generation remains blocked. See [current readiness](FINAL_READINESS.md), [control panel](UNIFIED_WORKFLOW.md), [Gemini policy](GEMINI_FALLBACK.md) and [migration sequence](WORKFLOW_MIGRATION.md). Older workflow inventories and validation counts below are historical, not current activation instructions.
+
+
 This is an implemented application, not a claim of verified production operation.
 
 ## Requires external setup

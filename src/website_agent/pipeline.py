@@ -233,7 +233,7 @@ class Pipeline:
             )
             if queue:
                 queue.relevant += 1
-        audit.research = research.model_dump()
+        audit.research = {**research.model_dump(), "gemini": getattr(self.ai, "last_provenance", {})}
         self.session.commit()
         self.log(prospect.status, prospect_id=prospect.id, score=audit.score)
 
@@ -257,7 +257,11 @@ class Pipeline:
             prospect_id=prospect.id,
             version=1,
             files={},
-            metadata_json={"design": design.model_dump(), "source": prospect.url},
+            metadata_json={
+                "design": design.model_dump(),
+                "source": prospect.url,
+                "gemini": getattr(self.ai, "last_provenance", {}),
+            },
         )
         self.session.add(site)
         self.session.flush()
@@ -270,6 +274,8 @@ class Pipeline:
     def deploy(self, site):
         if site.status == "verified":
             return site
+        if not self.settings.enable_deployment:
+            raise CapacityDeferred("Netlify deployment requires separate approval")
         title = "gwa-" + site.id
         if not site.deploy_id:
             if site.status == "deploy_pending":
@@ -352,7 +358,11 @@ class Pipeline:
             deployed = self.step("deployment", lambda s=site: self.deploy(s), prospect)
             if deployed:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
-        if scheduled and discovered_location and not self.run.summary.get("failure"):
+        if (
+            scheduled
+            and discovered_location
+            and not any(self.run.summary.get(k) for k in ("failure", "capacity_deferred"))
+        ):
             set_config(
                 self.session,
                 "daily_checkpoint",
@@ -413,14 +423,14 @@ class Pipeline:
                         prospect_id=prospect.id,
                         category=category,
                         gmail_thread=incoming["threadId"],
-                        action="Review Gmail thread and acknowledgment draft",
+                        action="Review Gmail thread; owner handles the conversation",
                     )
         # Retry saved acknowledgment work independently of already-classified messages.
         for prospect in self.session.scalars(
             select(Prospect).where(Prospect.status.in_(["interested", "needs_information"]))
         ).all():
             self.step("acknowledgment", lambda p=prospect: self.acknowledge(p), prospect)
-        if not self.run.summary.get("failure"):
+        if not any(self.run.summary.get(k) for k in ("failure", "capacity_deferred")):
             set_config(self.session, "reply_checkpoint", {"at": began.isoformat()})
 
     def acknowledge(self, prospect):
@@ -440,6 +450,8 @@ class Pipeline:
         self.replies()  # Must complete successfully before ANY followup processing.
         if self.run.summary.get("failure"):
             raise Blocked("Reply synchronization incomplete; followups paused")
+        if self.run.summary.get("capacity_deferred"):
+            raise CapacityDeferred("Reply classification deferred; followups paused")
         for prospect in self.session.scalars(select(Prospect).where(Prospect.status == "contacted")).all():
             for sequence in range(1, self.config.limits.max_followups + 1):
                 if not followup_eligible(self.session, prospect, self.config, now(), sequence):
@@ -482,6 +494,8 @@ class Pipeline:
     def finish(self):
         if self.run.summary.get("failure"):
             self.run.status = "partial"
+        elif self.run.summary.get("capacity_deferred"):
+            self.run.status = "deferred_resource_limit"
         elif self.discovery_outcome and (
             self.run.kind == "discover" or not self.discovery_outcome["status"].startswith("completed")
         ):

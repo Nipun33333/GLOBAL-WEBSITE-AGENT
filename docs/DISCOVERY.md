@@ -1,6 +1,6 @@
 # Zero-key discovery and recovery
 
-`discovery_provider: open_data` is the default. No discovery API key, Gemini call, Gmail access or Netlify access is needed for `website-agent discover`. A persistent PostgreSQL/Supabase connection remains necessary. This change does not enable automation or sending, alter secrets, modify production workflows or restore the removed test workflow.
+`discovery_provider: open_data` is the default. No discovery API key, Gemini call, Gmail access or Netlify access is needed for `website-agent discover`. A persistent PostgreSQL/Supabase connection remains necessary. Discovery does not enable automation or sending or alter secrets. The unified control panel preserves its isolated mode; no test workflow is restored.
 
 ## Source and search sequence
 
@@ -94,7 +94,7 @@ Primary references: [Overture cloud catalog and official endpoints](https://docs
 3. Review one configured city envelope, category mapping, source license provenance and small budgets. Imported Base44 history/suppressions should already be present; they are not fetched from Base44 by this command.
 4. In that city's eligible local research window, run `uv run website-agent discover --country US` (or another configured ISO country). This invokes only discovery/database/report code. Do **not** substitute `daily` or `live-smoke`, which involve other integrations.
 5. Inspect `artifacts/report.md`, `workflow_runs`, `run_events`, `business_sources.evidence` and `configuration` task/circuit records. Fewer results, an empty result, or a documented deferral are legitimate. Do not weaken verification to achieve 30.
-6. Rerun after the persisted next eligible time to inspect recovery. Keep automatic sending disabled. Production workflow files remain unchanged; a manual local discovery-only command is provided through the separately approved manual-only verification workflow, registered by PR #7. Discovery writes still require explicit owner approval.
+6. Rerun after the persisted next eligible time to inspect recovery. Keep automatic sending disabled. The isolated discover mode is available through Global Website Agent, registered by PR #8; see [the unified control panel](UNIFIED_WORKFLOW.md). Discovery writes still require explicit owner approval.
 
 ## Verification
 

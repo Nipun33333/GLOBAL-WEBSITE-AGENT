@@ -22,6 +22,7 @@ def approved_env():
         GITHUB_TRIGGERING_ACTOR="Nipun33333",
         GITHUB_RUN_ATTEMPT="1",
         GITHUB_RUN_ID="fixture",
+        GITHUB_EVENT_NAME="workflow_dispatch",
         FREE_LIMITS_REVIEWED="true",
         DATABASE_REVIEWED="true",
         ENABLE_SENDING="false",
@@ -41,7 +42,7 @@ def approved_env():
         {"GITHUB_ACTOR": "other"},
         {"GITHUB_TRIGGERING_ACTOR": "other"},
         {"GITHUB_REPOSITORY": "Nipun33333/other"},
-        {"GITHUB_REF": "refs/heads/main"},
+        {"GITHUB_REF": "refs/heads/unreviewed"},
         {"ENABLE_SENDING": "true"},
         {"ENABLE_ROUTINE_REPLIES": "true"},
         {"AUTOMATION_ENABLED": "true"},
@@ -147,7 +148,7 @@ def test_account_checks_use_only_metadata_site_token_and_profile(settings):
     raw = json.dumps(results)
     assert "private-token" not in raw and settings.sender_email not in raw and "never print" not in raw
     assert sum(method == "POST" for method, _ in calls) == 1
-    assert len(calls) == 5
+    assert len(calls) == 9
 
 
 @pytest.mark.parametrize("scope,expected", [(None, "not_returned"), ("openid", "missing_required_scope")])
@@ -246,27 +247,23 @@ def test_diagnostics_mode_never_invokes_discovery(monkeypatch, tmp_path, setting
     assert data["mode"] == "diagnostics"
 
 
-def test_workflow_manual_only_owner_commit_approval_and_no_secret_install():
-    path = Path(".github/workflows/manual-live-verification.yml")
+def test_workflow_owner_commit_approval_and_no_secret_install():
+    path = Path(".github/workflows/global-website-agent.yml")
     workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
-    assert set(workflow["on"]) == {"workflow_dispatch"}
+    assert set(workflow["on"]) == {"workflow_dispatch", "schedule"}
     assert workflow["on"]["workflow_dispatch"]["inputs"]["mode"]["default"] == "diagnostics"
-    assert workflow["permissions"] == {"contents": "read"}
-    job = workflow["jobs"]["verify"]
+    job = workflow["jobs"]["agent"]
     assert "github.triggering_actor == github.repository_owner" in job["if"]
-    assert live.APPROVAL in job["if"] and "github.run_attempt == 1" in job["if"]
-    assert (
-        job["environment"] == "agent-runtime"
-        and job["concurrency"]["group"] == "global-website-agent-runtime"
-    )
+    assert "github.run_attempt == 1" in job["if"]
+    assert job["environment"] == "agent-runtime"
+    assert job["concurrency"]["group"] == "global-website-agent-runtime"
     assert all("secrets." not in value for value in job["env"].values())
     for step in job["steps"]:
         if "secrets." in str(step):
-            assert step["run"] == "uv run python -m website_agent.live_verification"
-        assert "website-agent daily" not in str(step) and "website-agent migrate" not in str(step)
-    upload = job["steps"][-1]["with"]
-    assert upload["path"].splitlines() == [
+            assert step["run"] == "uv run python scripts/master_entry.py"
+        assert "website-agent migrate" not in str(step)
+    assert job["steps"][-1]["with"]["path"].splitlines() == [
         "artifacts/live-verification.json",
         "artifacts/live-verification.md",
     ]
-    assert upload["retention-days"] == "1"
+    assert job["steps"][-1]["with"]["retention-days"] == "1"

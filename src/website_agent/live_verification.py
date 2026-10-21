@@ -77,7 +77,8 @@ class CheckFailed(Exception):
 def guard(environ):
     if (
         environ.get("GITHUB_REPOSITORY") != "Nipun33333/GLOBAL-WEBSITE-AGENT"
-        or environ.get("GITHUB_REF") != "refs/heads/feature/free-overture-discovery"
+        or environ.get("GITHUB_REF") not in {"refs/heads/feature/free-overture-discovery", "refs/heads/main"}
+        or environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
         or environ.get("GITHUB_ACTOR") != "Nipun33333"
         or environ.get("GITHUB_TRIGGERING_ACTOR") != "Nipun33333"
         or environ.get("GITHUB_RUN_ATTEMPT") != "1"
@@ -210,10 +211,14 @@ def api_json(client, method, url, **kwargs):
 def gemini_check(settings, client):
     results = {}
     limits = {}
-    models = [settings.gemini_model, settings.gemini_advanced_model] + [
-        s.strip() for s in settings.gemini_fallback_models.split(",") if s.strip()
-    ]
-    if len(models) > 5:
+    explicit = [s.strip() for s in settings.gemini_fallback_models.split(",") if s.strip()]
+    models = list(
+        dict.fromkeys(
+            [settings.gemini_model, settings.gemini_advanced_model]
+            + (explicit or settings.config().gemini.fallback_models)
+        )
+    )
+    if len(models) > 8:
         raise CheckFailed()
     for i, model in enumerate(models):
         label = "primary" if i == 0 else "advanced_reserved" if i == 1 else f"fallback_{i - 1}"

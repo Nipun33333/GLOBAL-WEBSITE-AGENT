@@ -19,7 +19,7 @@ from website_agent.database import (
 from website_agent.imports import import_eligibility, import_gmail_history, import_history, validate_history
 from website_agent.pipeline import Pipeline
 from website_agent.reporting import report
-from website_agent.security import Blocked
+from website_agent.security import Blocked, CapacityDeferred
 from website_agent.settings import Settings
 
 
@@ -239,6 +239,11 @@ def run_cli():
 
                 live_smoke(pipeline)
             pipeline.finish()
+        except CapacityDeferred as exc:
+            session.rollback()
+            pipeline.log("capacity_deferred", stage=args.command, reason=str(exc))
+            pipeline.run.status = "deferred_resource_limit"
+            session.commit()
         except Exception as exc:
             session.rollback()
             pipeline.log("failure", stage=args.command, error_type=type(exc).__name__)

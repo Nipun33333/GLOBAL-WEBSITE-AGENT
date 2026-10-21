@@ -16,6 +16,7 @@ class Netlify:
 
     def __init__(self, settings, client=None):
         settings.require("netlify_auth_token", "netlify_site_id")
+        self.settings = settings
         self.site_id = settings.netlify_site_id
         self.client = client or httpx.Client(
             base_url="https://api.netlify.com/api/v1/",
@@ -37,6 +38,8 @@ class Netlify:
         raise Blocked("Deployment reconciliation exceeded pagination bound; manual review required")
 
     def create(self, files, title):
+        if not self.settings.enable_deployment:
+            raise Blocked("Netlify deployment is disabled")
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
             for path, content in files.items():

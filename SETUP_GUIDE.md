@@ -26,20 +26,9 @@ Run migrations with a dedicated migration role if possible. Restrict the runtime
 
 ## 2. Gemini
 
-Create an authorized Gemini API key and configure `GEMINI_API_KEY`. The official Google GenAI SDK calls model metadata before generation. The requested default is `gemini-3.8-flash`; access to this model has **not** been verified with your account. `GEMINI_ADVANCED_MODEL=gemini-4-argon` is reserved configuration, not automatically invoked. Set `GEMINI_MODEL` to it explicitly to request that model for a run. Set `GEMINI_FALLBACK_MODELS` to a comma-separated list only if you deliberately authorize those models. Unavailable models do not trigger guessed substitutions. Rate-limit errors do not trigger fallback as a quota bypass.
+Reuse the existing `GEMINI_API_KEY` secret. See [Gemini fallback](docs/GEMINI_FALLBACK.md) for exact official models, metadata checks, catalog expiry, bounded retries and model pinning. Primary remains `gemini-3.8-flash`. The default lower candidates are 3.6 Flash, 3.5 Flash-Lite and account-eligible 2.5 Flash/Flash-Lite. 3.7 now routes to 3.8 and is not independent recovery capacity. The reserved Argon setting is not selected automatically.
 
-Enter verified current prices for each enabled model in `config/settings.yml`:
-
-```yaml
-model_prices:
-  YOUR_VERIFIED_MODEL:
-    input_per_million: YOUR_CURRENT_INPUT_PRICE
-    output_per_million: YOUR_CURRENT_OUTPUT_PRICE
-```
-
-Use numeric values, not the placeholders. An explicit `0.0` is appropriate only if you have confirmed free usage for your actual account and workload. Costs include reported input, output and thinking tokens; an in-flight reservation remains charged to the local cap when actual billing is unknown. The ledger is an estimate, not a replacement for provider billing alerts. Long inputs and output sizes are bounded. Successful structured requests are cached in PostgreSQL.
-
-References: [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output), [available models](https://ai.google.dev/gemini-api/docs/models).
+Keep `allow_paid_fallback: false`. Owner-reviewed account-tier authorizations with expiry and verified token prices are both required; the shipped maps are empty. Metadata success does not establish free allowance. `ENABLE_GENERATION` defaults false. Never activate billing to satisfy a test. See [official pricing](https://ai.google.dev/gemini-api/docs/pricing).
 
 ## 3. Discovery authorization
 
@@ -105,9 +94,9 @@ Configure the repository's `agent-runtime` GitHub Environment (or repository sec
 | `SENDER_POSTAL_ADDRESS` | Verified physical business postal address |
 | `OWNER_EMAIL` | Owner identity / internal smoke draft recipient |
 
-Repository variables: `AUTOMATION_ENABLED` (default unset/false), `ENABLE_SENDING` (default false), `ENABLE_ROUTINE_REPLIES` (default false), `GEMINI_MODEL`, `GEMINI_ADVANCED_MODEL`, `GEMINI_FALLBACK_MODELS`.
+Repository variables and independent manual approvals are listed in [UNIFIED_WORKFLOW.md](docs/UNIFIED_WORKFLOW.md). Keep automation/sending disabled. Routine replies are forced off. The 12 existing required secret names are unchanged; no copying is required.
 
-Local configuration reads `.env`; copy `.env.example`, then populate values securely. Do not place real secrets in workflow YAML.
+Only separately authorized local installations read `.env`; this existing installation uses GitHub Secrets. Do not place real secrets in workflow YAML.
 
 ## 6. Verification sequence
 
@@ -124,7 +113,7 @@ Read-only doctor checks do not verify generation, quota affordability, provider 
 
 ## Current live setup prerequisite
 
-See [LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md) for measured evidence. GitHub Secrets cannot be read back and are not downloaded by this task. Configure existing credentials directly in the ignored local `.env` file using your own secure process. Never paste credentials in chat or commit the file. Discovery-only needs `DATABASE_URL`; model, hosting and Gmail checks separately need their existing settings. Keep `AUTOMATION_ENABLED=false`, `ENABLE_SENDING=false`, and `ENABLE_ROUTINE_REPLIES=false`. Do not activate billing. Confirm actual account free usage before `live-smoke`; a configured API key alone does not establish that.
+See [LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md) for measured evidence. GitHub Secrets cannot be read back and are not downloaded by this task. Use existing GitHub Secrets through approved diagnostics; do not recreate deleted local credentials. Never paste credentials in chat or commit the file. Discovery-only needs `DATABASE_URL`; model, hosting and Gmail checks separately need their existing settings. Keep `AUTOMATION_ENABLED=false`, `ENABLE_SENDING=false`, and `ENABLE_ROUTINE_REPLIES=false`. Do not activate billing. Confirm actual account free usage before `live-smoke`; a configured API key alone does not establish that.
 
 ## Confirmed public model documentation, not account access
 

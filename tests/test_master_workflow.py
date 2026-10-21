@@ -300,6 +300,92 @@ def test_readonly_account_diagnostics_never_trigger_mutations(monkeypatch, setti
     assert all(fn.call_count == 1 for fn in checks.values())
 
 
+def test_empty_schema_bootstrap_rejects_schedules_before_db_access(monkeypatch):
+    from website_agent import live_verification as live
+
+    attempt = Mock(side_effect=AssertionError("Unexpected DB access"))
+    monkeypatch.setattr(live, "readonly_database", attempt)
+    assert master.bootstrap_empty_agent_schema(
+        Mock(), {"mode": "daily", "scheduled": True, "revision": SHA}
+    ) == "bootstrap_not_authorized"
+    attempt.assert_not_called()
+
+
+def test_empty_schema_bootstrap_never_migrates_existing_tables(monkeypatch, settings):
+    from contextlib import contextmanager
+
+    from website_agent import cli, live_verification as live
+
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setenv("GITHUB_ACTOR", "Nipun33333")
+    monkeypatch.setenv("GITHUB_TRIGGERING_ACTOR", "Nipun33333")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    monkeypatch.setenv("GITHUB_SHA", SHA)
+
+    @contextmanager
+    def readonly(_):
+        yield Mock()
+
+    monkeypatch.setattr(live, "readonly_database", readonly)
+    import sqlalchemy
+
+    monkeypatch.setattr(sqlalchemy, "inspect", lambda _: Mock(get_table_names=lambda **_: ["prospects"]))
+    migrate = Mock(side_effect=AssertionError("Existing tables must never be modified"))
+    monkeypatch.setattr(cli, "migrate", migrate)
+    selected = {"mode": "daily", "scheduled": False, "revision": SHA}
+    assert (
+        master.bootstrap_empty_agent_schema(settings, selected)
+        == "bootstrap_requires_review_nonempty_public_schema"
+    )
+    migrate.assert_not_called()
+
+
+def test_empty_schema_bootstrap_initializes_once_and_uses_verified_tls(
+    monkeypatch, settings
+):
+    from contextlib import contextmanager
+
+    import sqlalchemy
+
+    from website_agent import cli, database, live_verification as live
+
+    settings.database_url = (
+        "postgresql://postgres.project:fixture-password@pooler.example:5432/postgres"
+    )
+    for key, value in (
+        ("GITHUB_EVENT_NAME", "workflow_dispatch"),
+        ("GITHUB_REF", "refs/heads/main"),
+        ("GITHUB_ACTOR", "Nipun33333"),
+        ("GITHUB_TRIGGERING_ACTOR", "Nipun33333"),
+        ("GITHUB_RUN_ATTEMPT", "1"),
+        ("GITHUB_SHA", SHA),
+    ):
+        monkeypatch.setenv(key, value)
+
+    @contextmanager
+    def readonly(_):
+        yield Mock()
+
+    monkeypatch.setattr(live, "readonly_database", readonly)
+    monkeypatch.setattr(sqlalchemy, "inspect", lambda _: Mock(get_table_names=lambda **_: []))
+    monkeypatch.setattr(live, "database_sslrootcert", lambda: "/trusted/project-ca.pem")
+    engine = Mock()
+    engine_for = Mock(return_value=engine)
+    migration = Mock()
+    monkeypatch.setattr(database, "engine_for", engine_for)
+    monkeypatch.setattr(cli, "migrate", migration)
+
+    selected = {"mode": "daily", "scheduled": False, "revision": SHA}
+    assert master.bootstrap_empty_agent_schema(settings, selected) == "schema_initialized"
+    chosen_url = engine_for.call_args.args[0]
+    assert chosen_url.startswith("postgresql+psycopg://")
+    assert "sslmode=verify-full" in chosen_url
+    assert "/trusted/project-ca.pem" in chosen_url
+    migration.assert_called_once_with(engine)
+    engine.dispose.assert_called_once()
+
+
 def test_one_click_missing_database_secret_is_reported_without_connection_attempt(
     monkeypatch, settings
 ):

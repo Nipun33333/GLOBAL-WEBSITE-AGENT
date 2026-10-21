@@ -1,4 +1,4 @@
-# All limits are GLOBAL. Edit configuration, not Python, to change coverage.
+# Global resource limits apply to UK-only business operations.
 limits:
   discovered: 1
   inspected: 3  # Check up to 3 candidates; produce at most one qualified demo.
@@ -65,73 +65,70 @@ niches:
   - clinics
   - repair shops
   - small professional services
+# Strict production scope: Great Britain and Northern Ireland only (ISO 3166-1 alpha-2: GB).
+# These boxes are search envelopes, not city/country legal boundaries.
+operating_country: GB
 locations:
-  - country: US
-    city: New York
-    bbox: [-74.05, 40.65, -73.85, 40.85]
-    timezone: America/New_York
-    language: en
-    subdivision: NY
   - country: GB
     city: London
-    bbox: [-0.3, 51.4, 0.05, 51.6]
+    bbox: [-0.30, 51.40, 0.05, 51.60]
     timezone: Europe/London
     language: en
     subdivision: ENG
-  - country: CA
-    city: Toronto
-    bbox: [-79.55, 43.58, -79.2, 43.8]
-    timezone: America/Toronto
+  - country: GB
+    city: Manchester
+    bbox: [-2.30, 53.43, -2.15, 53.54]
+    timezone: Europe/London
     language: en
-    subdivision: 'ON'
-  - country: AU
-    city: Sydney
-    bbox: [151.05, -33.98, 151.3, -33.75]
-    timezone: Australia/Sydney
+    subdivision: ENG
+  - country: GB
+    city: Birmingham
+    bbox: [-1.95, 52.42, -1.82, 52.53]
+    timezone: Europe/London
     language: en
-    subdivision: NSW
-  - country: IN
-    city: Mumbai
-    bbox: [72.78, 18.9, 72.98, 19.2]
-    timezone: Asia/Kolkata
-    language: hi
-    subdivision: MH
-  - country: AE
-    city: Dubai
-    bbox: [55.1, 25.0, 55.4, 25.3]
-    timezone: Asia/Dubai
-    language: ar
-    subdivision: null
-  - country: DE
-    city: Berlin
-    bbox: [13.2, 52.4, 13.55, 52.6]
-    timezone: Europe/Berlin
-    language: de
-    subdivision: BE
-  - country: FR
-    city: Paris
-    bbox: [2.25, 48.8, 2.42, 48.92]
-    timezone: Europe/Paris
-    language: fr
-    subdivision: null
-  - country: JP
-    city: Tokyo
-    bbox: [139.6, 35.55, 139.85, 35.8]
-    timezone: Asia/Tokyo
-    language: ja
-    subdivision: null
-  - country: SG
-    city: Singapore
-    bbox: [103.6, 1.2, 104.0, 1.45]
-    timezone: Asia/Singapore
+    subdivision: ENG
+  - country: GB
+    city: Leeds
+    bbox: [-1.60, 53.75, -1.47, 53.85]
+    timezone: Europe/London
     language: en
-    subdivision: null
-  - country: NZ
-    city: Auckland
-    bbox: [174.65, -36.95, 174.85, -36.78]
-    timezone: Pacific/Auckland
+    subdivision: ENG
+  - country: GB
+    city: Liverpool
+    bbox: [-3.05, 53.36, -2.90, 53.46]
+    timezone: Europe/London
     language: en
-    subdivision: AUK
+    subdivision: ENG
+  - country: GB
+    city: Bristol
+    bbox: [-2.65, 51.41, -2.52, 51.51]
+    timezone: Europe/London
+    language: en
+    subdivision: ENG
+  - country: GB
+    city: Glasgow
+    bbox: [-4.33, 55.81, -4.18, 55.91]
+    timezone: Europe/London
+    language: en
+    subdivision: SCT
+  - country: GB
+    city: Edinburgh
+    bbox: [-3.27, 55.91, -3.13, 55.99]
+    timezone: Europe/London
+    language: en
+    subdivision: SCT
+  - country: GB
+    city: Cardiff
+    bbox: [-3.24, 51.44, -3.12, 51.54]
+    timezone: Europe/London
+    language: en
+    subdivision: WLS
+  - country: GB
+    city: Belfast
+    bbox: [-5.99, 54.55, -5.83, 54.65]
+    timezone: Europe/London
+    language: en
+    subdivision: NIR
 
 
 # Zero-key discovery. These are search envelopes, not legal/administrative boundaries.

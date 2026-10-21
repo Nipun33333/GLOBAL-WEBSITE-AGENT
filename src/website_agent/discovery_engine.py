@@ -162,6 +162,9 @@ class DiscoveryEngine:
             self.session.commit()
 
     def plan(self, country):
+        if country and country != self.config.operating_country:
+            raise Blocked("Out-of-market discovery request refused")
+        country = self.config.operating_country
         taxonomy = yaml.safe_load(Path(self.options.taxonomy_path).read_text(encoding="utf-8"))
         if not taxonomy.get("review_reference"):
             raise permission("taxonomy_review_required")
@@ -398,7 +401,11 @@ class DiscoveryEngine:
         return True
 
     def run(self, country=None):
-        key = "discovery_task:" + (country or "worldwide")
+        if country and country != self.config.operating_country:
+            raise Blocked("Out-of-market discovery request refused")
+        country = self.config.operating_country
+        # The previous worldwide recovery journal is left untouched, never resumed.
+        key = "discovery_task:" + country
         signature = fingerprint(
             {
                 "reader_version": 2,

@@ -348,9 +348,6 @@ def osm_query(config, query, http):
         ):
             raise permission("overpass_commercial_endpoint_not_authorized")
         # One configured private/contracted endpoint. Never discover or rotate public servers.
-        from website_agent.security import public_addresses
-
-        public_addresses(config.overpass_endpoint)
         clauses = []
         w, s, e, n = query["bbox"]
         for cat in query["categories"]:
@@ -361,7 +358,7 @@ def osm_query(config, query, http):
         if not clauses:
             return {"records": [], "exhausted": True, "cursor": {}}
         q = "[out:json][timeout:15][maxsize:16777216];(" + "".join(clauses) + ");out center tags;"
-        raw, _ = http.get(
+        raw, _ = http.get_pinned(
             config.overpass_endpoint, params={"data": q}, cap=min(8_000_000, config.max_download_bytes)
         )
         data = json.loads(raw)

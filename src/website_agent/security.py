@@ -66,7 +66,7 @@ class PublicWeb:
         self.robots = {}
         self.discovery_budget = discovery_budget
 
-    def fetch(self, url, *, robots=True):
+    def fetch(self, url, *, robots=True, redirects=True):
         for _ in range(5):
             if self.discovery_budget:
                 self.discovery_budget.request()
@@ -112,6 +112,8 @@ class PublicWeb:
                 )
                 try:
                     if response.status in {301, 302, 303, 307, 308}:
+                        if not redirects:
+                            raise Blocked("Redirects are disabled for this endpoint")
                         url = urljoin(url, response.headers["Location"])
                         continue
                     read_limit = self.max_bytes

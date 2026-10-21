@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from website_agent.database import CountryPolicy, Suppression, get_config
 from website_agent.scheduler import contact_time
-from website_agent.security import email_address
+from website_agent.security import domain, email_address
 
 
 class Policy(BaseModel):
@@ -31,7 +31,10 @@ def eligible(session, prospect, settings, at, *, routine=False):
         return False, reasons + ["no_verified_business_email"]
     if not prospect.contact_evidence.get("observed"):
         reasons.append("contact_not_verified")
-    if session.scalar(select(Suppression).where(Suppression.key.in_([address, prospect.domain]))):
+    # A parent-domain opt-out also covers a subsequently discovered subdomain.
+    parts = domain(prospect.domain).split(".")
+    excluded = [address, *(".".join(parts[i:]) for i in range(len(parts)))]
+    if session.scalar(select(Suppression).where(Suppression.key.in_(excluded))):
         reasons.append("suppressed")
     if prospect.imported or prospect.status in {
         "rejected",

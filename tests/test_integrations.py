@@ -89,6 +89,7 @@ def test_gmail_mime(settings):
 
 
 def test_gmail_refresh_identity_draft_send(settings):
+    settings.enable_sending = True  # Explicit permission for this mocked send fixture.
     credentials = Mock(valid=False, token="refreshed")
 
     def refresh(request):

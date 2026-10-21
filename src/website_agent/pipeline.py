@@ -424,6 +424,8 @@ class Pipeline:
             set_config(self.session, "reply_checkpoint", {"at": began.isoformat()})
 
     def acknowledge(self, prospect):
+        if not self.settings.enable_routine_replies:
+            return  # Owner handles conversations; do not generate or create automatic reply drafts.
         site = self.session.scalar(
             select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
         )

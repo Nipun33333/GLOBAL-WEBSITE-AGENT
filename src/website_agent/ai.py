@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 import time
 from datetime import datetime, timedelta
 from typing import Literal
@@ -76,7 +77,7 @@ class Gemini:
             try:
                 info = self.client.models.get(model=model)
                 actions = getattr(info, "supported_actions", None)
-                if actions and "generateContent" not in actions:
+                if not actions or "generateContent" not in actions:
                     continue
                 self.model = model
                 set_config(
@@ -104,7 +105,10 @@ class Gemini:
         if pause.get("until") and now() < datetime.fromisoformat(pause["until"]):
             raise Blocked("Gemini quota pause active until next UTC day")
         price = self.config.model_prices.get(model)
-        if not price or min(price.get("input_per_million", -1), price.get("output_per_million", -1)) < 0:
+        if not price or any(
+            not math.isfinite(price.get(k, -1)) or price.get(k, -1) < 0
+            for k in ("input_per_million", "output_per_million")
+        ):
             raise Blocked(
                 "Configure verified Gemini token prices (explicit zero allowed for confirmed free tier)"
             )

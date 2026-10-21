@@ -105,6 +105,7 @@ def test_database_checks_never_apply_migrations(monkeypatch, settings, config, c
         yield conn
 
     monkeypatch.setattr(live, "readonly_database", database)
+    monkeypatch.setattr(live, "schema_matches", lambda _: True)
     monkeypatch.setattr(
         live,
         "inspect",
@@ -196,6 +197,8 @@ def test_discovery_isolated_argv_secrets_and_aggregate_output(monkeypatch, setti
         "official_websites_verified": 3,
         "private_email": "customer@example.com",
         "next_at": "private-token",
+        "rejection_reasons": {"duplicate_domain": 2, "customer@example.com": 99},
+        "fallback_layers_attempted": ["overture_aws", "private-token"],
     }
 
     @contextmanager
@@ -210,6 +213,8 @@ def test_discovery_isolated_argv_secrets_and_aggregate_output(monkeypatch, setti
     assert "GITHUB_STEP_SUMMARY" not in env and env["ENABLE_SENDING"] == "false"
     assert runner.call_args.kwargs["stdout"] == live.subprocess.DEVNULL
     assert "private" not in json.dumps(result) and result["businesses_inserted"] == 3
+    assert result["rejection_reasons"] == {"duplicate_domain": 2}
+    assert result["fallback_layers_attempted"] == ["overture_aws"]
     assert result["status"] == (
         "completed_with_results" if exit_code == 0 else "failed_after_discovery_check_checkpoint"
     )

@@ -7,6 +7,7 @@ import httpx
 from playwright.sync_api import sync_playwright
 
 from website_agent.discovery import api_get
+from website_agent.generation import validate
 from website_agent.security import Blocked, html_page
 
 
@@ -79,17 +80,18 @@ def verify_preview(web, url, site_key):
         or "Independent, unofficial redesign concept" not in page.text
     ):
         raise Blocked("Deployed content identity mismatch")
-    for asset in ("style.css", "app.js"):
-        response = web.fetch(url.rstrip("/") + "/" + asset, robots=False)
-        if response.status != 200 or "attachment" in response.headers.get("content-disposition", ""):
-            raise Blocked("Deployed asset unavailable")
     checks = []
     # Browser receives only the already fetched static assets. All other network is blocked.
     # This avoids DNS rebinding and arbitrary browser subrequests; HTTP content is verified above.
     asset_map = {url.rstrip("/") + "/": ("text/html", page.text)}
+    files = {"index.html": page.text}
     for asset, content_type in (("style.css", "text/css"), ("app.js", "application/javascript")):
         response = web.fetch(url.rstrip("/") + "/" + asset, robots=False)
+        if response.status != 200 or "attachment" in response.headers.get("content-disposition", ""):
+            raise Blocked("Deployed asset unavailable")
+        files[asset] = response.text
         asset_map[url.rstrip("/") + "/" + asset] = (content_type, response.text)
+    validate(files)  # Reject altered executable content before opening Chromium.
     with sync_playwright() as p:
         browser = p.chromium.launch()
         try:

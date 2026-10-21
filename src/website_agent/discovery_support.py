@@ -9,10 +9,11 @@ import time
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 import psutil
+import urllib3
 
 
 class DiscoveryFault(Exception):
@@ -91,6 +92,37 @@ class BoundedHTTP:
         self.budget = budget
         self.client = client or httpx.Client(timeout=15, follow_redirects=False, trust_env=False)
         self.sleep, self.jitter = sleep, jitter
+
+    def get_pinned(self, url, *, cap, params):
+        """Operator-configured endpoints need DNS pinning, unlike fixed official dataset origins."""
+        from website_agent.security import Blocked, PublicWeb
+
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or parsed.query or parsed.fragment:
+            raise permission("configured_endpoint_requires_plain_https")
+        web = PublicWeb(max_bytes=cap, discovery_budget=self.budget)
+        for attempt in range(self.budget.config.max_attempts):
+            try:
+                response = web.fetch(url + "?" + urlencode(params), robots=False, redirects=False)
+                if response.status == 429 or (response.status >= 500 and response.headers.get("retry-after")):
+                    raise unavailable(
+                        "provider_rate_limited", max(3600, retry_delay(response.headers.get("retry-after")))
+                    )
+                if response.status in {401, 403}:
+                    raise permission("provider_access_denied")
+                if response.status >= 500:
+                    raise OSError("transient")
+                if response.status != 200:
+                    raise schema("provider_http_permanent_error")
+                return response.text.encode(), response.headers
+            except Blocked:
+                raise permission("configured_endpoint_safety_check_failed") from None
+            except (OSError, urllib3.exceptions.HTTPError):
+                if attempt + 1 == self.budget.config.max_attempts:
+                    raise unavailable("transport_retries_exhausted") from None
+                self.budget.check()
+                self.sleep(self.budget.config.retry_base_seconds * 2**attempt + self.jitter())
+        raise unavailable("transport_retries_exhausted")
 
     def get(self, url, *, cap=None, headers=None, params=None):
         p = urlsplit(url)

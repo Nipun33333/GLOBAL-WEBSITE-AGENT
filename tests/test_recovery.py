@@ -18,6 +18,7 @@ from website_agent.security import Blocked, PublicWeb
 
 
 def test_draft_send_consumes_existing_container(settings):
+    settings.enable_sending = True  # Explicit permission for this mocked send fixture.
     requests = []
 
     def handler(request):

@@ -7,12 +7,13 @@ import re
 import subprocess
 import sys
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import certifi
 import httpx
-from sqlalchemy import create_engine, inspect, select, text
+from sqlalchemy import UniqueConstraint, create_engine, inspect, select, text
 from sqlalchemy.engine import make_url
 
 from website_agent.database import Base, Event, WorkflowRun, now
@@ -39,13 +40,38 @@ METRICS = (
     "records_scanned candidates_identified candidate_verifications already_known_duplicates "
     "official_websites_verified businesses_inserted elapsed_seconds remaining_queries pending_candidates"
 ).split()
+PROVIDER_CODES = {
+    "invalid_grant",
+    "invalid_client",
+    "unauthorized_client",
+    "access_denied",
+    "invalid_request",
+    "temporarily_unavailable",
+    "RESOURCE_EXHAUSTED",
+    "PERMISSION_DENIED",
+    "UNAUTHENTICATED",
+    "NOT_FOUND",
+    "INVALID_ARGUMENT",
+    "UNAVAILABLE",
+}
+REJECTIONS = set(
+    (
+        "duplicate_domain duplicate_source_id suppressed_domain_or_mailbox unverified_geography "
+        "unverified_coordinates unverified_outside_radius unverified_category unverified_url "
+        "unverified_listing_url excluded_directory_domain unverified_website_cooldown "
+        "unverified_website_rate_or_availability_limit unverified_canonical_url "
+        "unverified_business_website_association invalid_candidate_or_website_access"
+    ).split()
+)
+LAYERS = {"overture", "overture_aws", "overture_azure", "verified_cache", "osm_extract", "overpass"}
 
 
 class CheckFailed(Exception):
     """Never display provider exception text or connection strings."""
 
-    def __init__(self, http_status=None):
+    def __init__(self, http_status=None, provider_code=None):
         self.http_status = http_status
+        self.provider_code = provider_code if provider_code in PROVIDER_CODES else None
 
 
 def guard(environ):
@@ -99,9 +125,46 @@ def readonly_database(settings):
         engine.dispose()
 
 
+def schema_matches(inspector):
+    """Compare structural invariants; a stored migration checksum alone cannot detect drift."""
+    for table in Base.metadata.sorted_tables:
+        columns = {c["name"]: c for c in inspector.get_columns(table.name)}
+        if any(c.name not in columns or columns[c.name]["nullable"] != c.nullable for c in table.columns):
+            return False
+        if set(inspector.get_pk_constraint(table.name)["constrained_columns"]) != {
+            c.name for c in table.primary_key.columns
+        }:
+            return False
+        unique = {tuple(c["column_names"]) for c in inspector.get_unique_constraints(table.name)}
+        required = {
+            tuple(c.name for c in constraint.columns)
+            for constraint in table.constraints
+            if isinstance(constraint, UniqueConstraint)
+        }
+        if not required <= unique:
+            return False
+        indexes = {tuple(i["column_names"]) for i in inspector.get_indexes(table.name)}
+        if not {tuple(c.name for c in i.columns) for i in table.indexes} <= indexes:
+            return False
+        foreign = {
+            (tuple(f["constrained_columns"]), f["referred_table"], tuple(f["referred_columns"]))
+            for f in inspector.get_foreign_keys(table.name)
+        }
+        for fk in table.foreign_key_constraints:
+            expected = (
+                tuple(c.name for c in fk.columns),
+                fk.referred_table.name,
+                tuple(e.column.name for e in fk.elements),
+            )
+            if expected not in foreign:
+                return False
+    return True
+
+
 def database_check(settings, config):
     with readonly_database(settings) as conn:
-        if not set(Base.metadata.tables) | {"schema_migrations"} <= set(inspect(conn).get_table_names()):
+        inspector = inspect(conn)
+        if not set(Base.metadata.tables) | {"schema_migrations"} <= set(inspector.get_table_names()):
             return {"status": "blocked_missing_migrations", "discovery_ready": False}
         for path in Path("database/migrations").glob("*.sql"):
             checksum = conn.scalar(
@@ -109,6 +172,8 @@ def database_check(settings, config):
             )
             if checksum != hashlib.sha256(path.read_text(encoding="utf-8").encode()).hexdigest():
                 return {"status": "blocked_migration_mismatch", "discovery_ready": False}
+        if not schema_matches(inspector):
+            return {"status": "blocked_schema_drift", "discovery_ready": False}
         size = conn.scalar(text("SELECT pg_database_size(current_database())"))
         within = size < config.limits.database_max_mb * 1024 * 1024
         return {
@@ -116,6 +181,7 @@ def database_check(settings, config):
             "discovery_ready": within,
             "database_bytes": size,
             "tls_verified": True,
+            "schema_constraints_and_indexes": "verified",
             "session_pooling": "owner_attested_not_independently_proven",
         }
 
@@ -123,14 +189,19 @@ def database_check(settings, config):
 def api_json(client, method, url, **kwargs):
     # Fixed endpoints, no redirects or retries, bounded body; response bodies never enter reports.
     with client.stream(method, url, **kwargs) as response:
-        if response.status_code != 200:
-            raise CheckFailed(response.status_code)
         raw = bytearray()
         for chunk in response.iter_bytes():
             raw.extend(chunk)
             if len(raw) > 200_000:
-                raise CheckFailed()
-        value = json.loads(raw)
+                raise CheckFailed(response.status_code)
+        try:
+            value = json.loads(raw)
+        except (ValueError, UnicodeError):
+            raise CheckFailed(response.status_code) from None
+        if response.status_code != 200:
+            error = value.get("error") if isinstance(value, dict) else None
+            code = error.get("status") if isinstance(error, dict) else error
+            raise CheckFailed(response.status_code, code if isinstance(code, str) else None)
         if not isinstance(value, dict):
             raise CheckFailed()
         return value
@@ -138,6 +209,7 @@ def api_json(client, method, url, **kwargs):
 
 def gemini_check(settings, client):
     results = {}
+    limits = {}
     models = [settings.gemini_model, settings.gemini_advanced_model] + [
         s.strip() for s in settings.gemini_fallback_models.split(",") if s.strip()
     ]
@@ -159,6 +231,11 @@ def gemini_check(settings, client):
                 if "generateContent" in data.get("supportedGenerationMethods", [])
                 else "generation_not_supported"
             )
+            limits[label] = {
+                k: data[k]
+                for k in ("inputTokenLimit", "outputTokenLimit")
+                if type(data.get(k)) is int and 0 < data[k] < 10_000_000
+            }
         except Exception:
             results[label] = "unavailable_or_request_failed"
     return {
@@ -166,6 +243,8 @@ def gemini_check(settings, client):
         if results.get("primary") == "metadata_available"
         else "blocked_primary_model",
         "configured_models": results,
+        "reported_token_limits": limits,
+        "structured_output": "requires_authorized_generation_test",
         "generation": "not_attempted",
         "free_generation_quota": "not_verified",
     }
@@ -249,6 +328,8 @@ def run_check(fn):
         result = {"status": "failed_or_unavailable"}
         if type(exc.http_status) is int and 100 <= exc.http_status <= 599:
             result["http_status"] = exc.http_status
+        if exc.provider_code:
+            result["provider_code"] = exc.provider_code
         return result
     except Exception:
         return {"status": "failed_or_unavailable"}
@@ -315,6 +396,22 @@ def discover(settings, config):
             result["transfer_counts_are_upper_bounds"] = (
                 details.get("transfer_counts_are_upper_bounds") is True
             )
+            rejected = details.get("rejection_reasons", {})
+            if isinstance(rejected, dict):
+                result["rejection_reasons"] = {
+                    k: v for k, v in rejected.items() if k in REJECTIONS and type(v) is int and 0 <= v < 1e12
+                }
+            layers = details.get("fallback_layers_attempted", [])
+            if isinstance(layers, list):
+                result["fallback_layers_attempted"] = [
+                    v for v in layers[:20] if isinstance(v, str) and v in LAYERS
+                ]
+            try:
+                next_at = datetime.fromisoformat(details.get("next_at", ""))
+                if next_at.tzinfo is not None:
+                    result["next_at"] = next_at.isoformat()
+            except (ValueError, TypeError):
+                pass
     if completed.returncode != 0 and result["status"].startswith("completed"):
         result["status"] = "failed_after_discovery_check_checkpoint"
     return result

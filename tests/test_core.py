@@ -134,6 +134,25 @@ def test_rotation_fair_and_no_repeat(session, config):
     assert len(session.scalars(select(LocationQueue)).all()) == len(eligible_locations) * 12
 
 
+def test_global_rotation_skips_closed_timezones_when_another_country_is_open(session, config):
+    from website_agent.database import LocationQueue
+
+    config.research_hours = [9, 17]
+    config.niches = ["salons"]
+    config.locations = [
+        next(loc for loc in config.locations if loc.country == "US"),
+        next(loc for loc in config.locations if loc.country == "IN"),
+    ]
+    # New York is open at 09:00 on this UTC afternoon; Mumbai is closed at 18:30.
+    # An underserved closed country must not freeze worldwide discovery.
+    at = datetime(2026, 10, 20, 13, tzinfo=UTC)
+    session.add(LocationQueue(country="US", city="New York", niche="salons", searches=1))
+    session.commit()
+    chosen = rotate(session, config, at=at)
+    assert chosen is not None
+    assert chosen[1].country == "US"
+
+
 def test_transaction_uniqueness(session, prospect):
     session.add(
         Prospect(

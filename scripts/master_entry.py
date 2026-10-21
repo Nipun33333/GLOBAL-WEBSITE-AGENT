@@ -130,8 +130,12 @@ def execute(selected):
     if mode in {"diagnostics", "discover"}:
         os.environ.update(VERIFY_MODE=mode, REVIEWED_COMMIT=selected["revision"])
         return live.main()
-    settings = Settings(_env_file=None)
-    config = settings.config()
+    try:
+        settings = Settings(_env_file=None)
+        config = settings.config()
+    except Exception:
+        live.publish({"status": "blocked_application_config", "mode": mode})
+        return 2
     if selected["country"] and selected["country"] not in {loc.country for loc in config.locations}:
         raise ValueError("Country is not configured")
     # Preserve useful provider-neutral diagnostics without exposing URLs or SQL errors.

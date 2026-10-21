@@ -111,10 +111,20 @@ class Pipeline:
         self.session.commit()
         return True
 
-    def scheduled_due(self):
+    def schedule_slot(self):
+        """A durable local-time slot; each approved daily slot may run once."""
         local = now().astimezone(ZoneInfo(self.config.schedule_timezone))
-        last = get_config(self.session, "daily_checkpoint")
-        return local.hour >= self.config.schedule_hour and last.get("date") != local.date().isoformat()
+        if self.config.schedule_hours:
+            due = [hour for hour in self.config.schedule_hours if hour <= local.hour]
+            if not due:
+                return None
+            return f"{local.date().isoformat()}@{max(due):02d}"
+        return local.date().isoformat() if local.hour >= self.config.schedule_hour else None
+
+    def scheduled_due(self):
+        slot = self.schedule_slot()
+        checkpoint = get_config(self.session, "daily_checkpoint")
+        return bool(slot) and checkpoint.get("slot", checkpoint.get("date")) != slot
 
     def verify(self, site):
         result = self.verifier(self.web, site.url, site.id)
@@ -330,13 +340,14 @@ class Pipeline:
             if site:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
         schedule_date = now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()
+        schedule_slot = self.schedule_slot() if scheduled else None
         discovery_checkpoint = get_config(self.session, "discovery_checkpoint")
-        if scheduled and discovery_checkpoint.get("date") == schedule_date:
+        if scheduled and discovery_checkpoint.get("slot", discovery_checkpoint.get("date")) == schedule_slot:
             discovered_location = True
         else:
             discovered_location = self.step("discovery", lambda: self.discover(country))
             if scheduled and discovered_location:
-                set_config(self.session, "discovery_checkpoint", {"date": schedule_date})
+                set_config(self.session, "discovery_checkpoint", {"date": schedule_date, "slot": schedule_slot})
         query = (
             select(Prospect)
             .where(Prospect.status.in_(["discovered", "audited"]))
@@ -366,7 +377,7 @@ class Pipeline:
             set_config(
                 self.session,
                 "daily_checkpoint",
-                {"date": now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()},
+                {"date": schedule_date, "slot": schedule_slot},
             )
 
     def replies(self):

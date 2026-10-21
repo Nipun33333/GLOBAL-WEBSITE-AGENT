@@ -30,6 +30,9 @@ These are one-time repository settings, not repeated Run workflow inputs. Do **n
 
 ## Capability safety and costs
 
+**Manual one-click preview run:** Gemini Generation, Netlify draft preview and Gmail unsent draft are permitted by default for the repository owner's manual dispatch after the October 22 Free-Tier review. Setting `ALLOW_GENERATION=false`, `ALLOW_DEPLOYMENT=false` or `ALLOW_DRAFTS=false` as an explicit GitHub Actions Variable disables the respective capability. Scheduled runs still require their own Variables (`true`) and all schedule review gates. `ALLOW_SENDING` and `ENABLE_SENDING` remain false by default in every mode: no prospect emails will be sent without separately reviewed country rules, eligibility, deduplication/suppression and owner authorization. Draft preview deployment uses the existing configured Netlify project and respects the existing two previews/day cap; the actual account's remaining credit balance must still be monitored. No billing configuration changes were made.
+
+
 The owner may authorize independent capabilities through existing repository variables **only after verifying account usage and source rights**:
 
 - `ALLOW_GENERATION=true` requires valid and current Gemini model capabilities, model pricing, and explicit free/authorized usage records.
@@ -41,7 +44,7 @@ These flags alone **cannot** bypass the existing country policy, legal-basis evi
 
 Automatic follow-up sends and automatic customer replies are disabled. Customer conversations remain owner-handled.
 
-Current Gemini `model_prices` and `usage_authorizations` are empty; AI generation will defer safely until actual current model eligibility and pricing have been reviewed. Overture discovery does not need `DISCOVERY_API_KEY`. OSM remains unconfigured until license and dataset obligations are satisfied.
+**Owner review 22 October 2026:** Google AI Studio's `Default Gemini Project` Free tier shows nonzero RPM/TPM/RPD quotas for Gemini 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite. Public Google pricing lists no charge for their standard Free-tier text usage. Exact-model usage authorizations in `config/settings.yml` expire **21 November 2026**; daily AI request cap is **12**, paid fallback remains disabled. Availability/rate limits must still be enforced by the provider and can be exhausted. Overture discovery does not need `DISCOVERY_API_KEY`. OSM remains unconfigured until license and dataset obligations are satisfied.
 
 ### Supabase connection setup for GitHub-hosted runners
 

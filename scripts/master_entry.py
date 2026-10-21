@@ -48,7 +48,9 @@ def plan(env, actual_sha):
             raise ValueError("Scheduled mode not owner approved")
         country = ""
     else:
-        permitted_refs = {"refs/heads/main"} if one_click else {"refs/heads/main", "refs/heads/feature/free-overture-discovery"}
+        permitted_refs = ({"refs/heads/main"} if one_click else {
+            "refs/heads/main", "refs/heads/feature/free-overture-discovery"
+        })
         if env.get("GITHUB_REF") not in permitted_refs:
             raise ValueError("Unreviewed branch")
         if any(env.get(k) != "Nipun33333" for k in ("GITHUB_ACTOR", "GITHUB_TRIGGERING_ACTOR")):

@@ -352,7 +352,7 @@ def execute(selected):
 
     from sqlalchemy import func, select
 
-    from website_agent.database import CostUsage, Event, Message, Site, WorkflowRun, now
+    from website_agent.database import CostUsage, Event, Message, Prospect, Site, WorkflowRun, now
 
     counts = {}
     run_diagnostics = {}
@@ -387,6 +387,22 @@ def execute(selected):
                 ).scalar()
                 if outcome:
                     run_diagnostics["discovery"] = safe_discovery_details(outcome)
+                # Aggregate only known stage names from THIS execution, never recipient data.
+                stage_names = {
+                    "discovered", "inspected", "qualified", "disqualified",
+                    "strong_website_disqualified", "discovery_skipped",
+                    "website_generated", "deployment_verified", "email_drafted",
+                    "email_sent", "outreach_deferred", "failure",
+                    "capacity_deferred", "location_deferred",
+                }
+                stage_rows = connection.execute(
+                    select(Event.event, func.count())
+                    .where(Event.run_id == exact_run.id, Event.event.in_(stage_names))
+                    .group_by(Event.event)
+                ).all()
+                run_diagnostics["stage_event_counts"] = {
+                    name: int(count) for name, count in stage_rows if name in stage_names
+                }
             # Recovery journals also record why a fully bounded run deferred.
             from website_agent.database import Configuration
 
@@ -397,6 +413,19 @@ def execute(selected):
             ).scalar()
             if recovery:
                 run_diagnostics["recovery"] = safe_discovery_details(recovery)
+            # Counts show the funnel without exporting domains, emails or personal data.
+            prospect_statuses = (
+                "discovered", "audited", "qualified", "disqualified",
+                "no_contact", "draft_ready", "contacted", "replied",
+            )
+            run_diagnostics["business_funnel"] = {
+                state: int(connection.scalar(
+                    select(func.count())
+                    .select_from(Prospect)
+                    .where(Prospect.status == state)
+                ) or 0)
+                for state in prospect_statuses
+            }
             since = now() - timedelta(days=7 if mode == "report" else 1)
             for label, table in (("runs", WorkflowRun), ("sites", Site), ("messages", Message)):
                 counts[label] = connection.scalar(

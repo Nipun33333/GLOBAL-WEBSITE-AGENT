@@ -11,8 +11,9 @@ limits:
   ai_requests_daily: 30
   ai_budget_usd: 1.0
   database_max_mb: 400
-schedule_timezone: UTC
-schedule_hour: 3
+schedule_timezone: Asia/Kolkata
+schedule_hour: 15
+schedule_hours: [15, 21]  # India: 3 PM and 9 PM, separate durable slots
 research_hours: [8, 20]
 discovery_provider: open_data
 # Must reference a reviewed agreement permitting storage AND this marketing use.

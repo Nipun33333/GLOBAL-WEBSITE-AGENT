@@ -2,7 +2,7 @@
 
 The existing 12 required GitHub Secrets are already configured. Reuse them through the registered [manual diagnostics workflow](docs/MANUAL_LIVE_VERIFICATION.md); no local `.env` recreation is required. The account-creation instructions below are for new installations or provider-side recovery only. See [current readiness and owner actions](docs/FINAL_READINESS.md).
 
-Use only this repository and dedicated infrastructure for this agent. Do not reuse or change Base44's database or workflows.
+Use only this repository and dedicated infrastructure for this agent. Use separate, owner-authorized credentials and infrastructure.
 
 ## 1. Persistent PostgreSQL
 

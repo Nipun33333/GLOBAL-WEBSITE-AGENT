@@ -97,6 +97,22 @@ def discovery_setup(config, tmp_path):
     return cfg, engine
 
 
+def test_production_discovery_rejects_foreign_market_before_search(
+    session, settings
+):
+    from website_agent.security import Blocked
+
+    config = settings.config()  # Unmodified GB-only production config.
+    reader = Mock()
+    engine = DiscoveryEngine(session, settings, config, reader=reader)
+    with pytest.raises(Blocked, match="Out-of-market"):
+        engine.run("US")
+    with pytest.raises(Blocked, match="Out-of-market"):
+        engine.plan("US")
+    reader.assert_not_called()
+    assert get_config(session, "discovery_task:US") == {}
+
+
 @pytest.mark.parametrize("bad", [[], [record(category="museum")], [record(url="")]])
 def test_overture_empty_irrelevant_or_no_website_falls_back(session, settings, discovery_setup, bad):
     _, make = discovery_setup

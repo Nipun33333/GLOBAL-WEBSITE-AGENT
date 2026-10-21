@@ -50,6 +50,7 @@ class Pipeline:
         self.verifier = verifier or verify_preview
         self.run = None
         self.discovery_outcome = None
+        self.initial_sends_this_run = 0  # Strictly one new outreach message per workflow run.
 
     @property
     def ai(self):
@@ -307,6 +308,9 @@ class Pipeline:
         return site
 
     def initial_outreach(self, prospect, site):
+        if self.initial_sends_this_run >= 1:
+            self.log("outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run")
+            return
         if not prospect.email or not prospect.contact_evidence.get("observed"):
             prospect.status = "no_contact"
             self.session.commit()
@@ -325,6 +329,7 @@ class Pipeline:
             self.log("email_drafted", prospect_id=prospect.id, message_id=message.id)
         if self.settings.enable_sending:
             if send_controlled(self.session, self.gmail, self.settings, self.config, message, self.verify):
+                self.initial_sends_this_run += 1
                 self.log("email_sent", prospect_id=prospect.id, gmail_id=message.gmail_id)
 
     def daily(self, country=None, scheduled=False):
@@ -333,12 +338,16 @@ class Pipeline:
             return
         self.database_capacity()
         # Existing drafts don't occupy the generation selection window.
-        for prospect in self.session.scalars(select(Prospect).where(Prospect.status == "draft_ready")).all():
+        for prospect in self.session.scalars(
+            select(Prospect).where(Prospect.status == "draft_ready").order_by(Prospect.created_at).limit(1)
+        ).all():
             site = self.session.scalar(
                 select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
             )
             if site:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
+        if self.initial_sends_this_run:
+            return  # Never contact two different businesses in one invocation.
         schedule_date = now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()
         schedule_slot = self.schedule_slot() if scheduled else None
         discovery_checkpoint = get_config(self.session, "discovery_checkpoint")

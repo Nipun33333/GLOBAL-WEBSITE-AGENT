@@ -1,6 +1,8 @@
 # Live readiness — 21 October 2026
 
-**Verdict: BLOCKED — REQUIRES OWNER ACTION.** Real anonymous Overture queries now return candidates within the unchanged budget. Verified website admission, persistent discovery and account integrations are not established: this checkout has no securely configured database, Gemini, Netlify or Gmail credentials. The owner was asked to configure the ignored local `.env` without sharing secrets in chat. Independent implementation, public-data diagnostics and offline verification continued. PR #6 must remain unmerged.
+**Verdict: BLOCKED — AWAITING OWNER-DISPATCHED LIVE VERIFICATION.** Real anonymous Overture queries return candidates within the unchanged budget. All 12 required GitHub repository secret names are confirmed present; no local credential copy or discovery API key is required. The new manual-only workflow uses `agent-runtime` for read-only diagnostics and separately approved discovery writes. It has not been dispatched. GitHub default-branch workflow registration, owner quota/database review and explicit launch remain outstanding. Follow [the exact owner launch guide](MANUAL_LIVE_VERIFICATION.md). PR #6 remains open and unmerged.
+
+The public dataset measurements below are the earlier completed probes; no credentialed business verification, database insert or account-connection result has been added. The original local-credential limitation is superseded by the GitHub Secrets route, not by a claim that live verification succeeded.
 
 ## Configuration and scope
 
@@ -55,7 +57,7 @@ Categories were 67 hair salons, 51 beauty salons, one blow-dry/blow-out service 
 
 Azure was independently checked with a single 8-byte footer request to the corresponding official asset: HTTP 206 Content-Range and `PAR1` trailer matched. This proves range accessibility, not full Azure candidate decoding or a real automatic outage failover. Automatic failover was tested offline.
 
-**`uv run website-agent discover --country US` was NOT run.** There was no `DATABASE_URL`, no authorized test database and no local PostgreSQL/container executable available. The US website-research window was also closed (approximately 03:21 New York / 12:51 India at the prerequisite check). Public dataset diagnostics do not visit business websites and do not substitute for this required persistence/verification run. No production checkpoint, accepted-source evidence, storage quota or actual suppression history was inspected.
+**`uv run website-agent discover --country US` was NOT run.** At the earlier probe, there was no local `DATABASE_URL`, authorized test database or PostgreSQL/container executable available. Existing GitHub Secrets now provide an owner-controlled route; the new workflow is still unlaunched. The US website-research window was also closed (approximately 03:21 New York / 12:51 India at the prerequisite check). Public dataset diagnostics do not visit business websites and do not substitute for this required persistence/verification run. No production checkpoint, accepted-source evidence, storage quota or actual suppression history was inspected.
 
 ## Readiness by component
 
@@ -68,20 +70,20 @@ Azure was independently checked with a single 8-byte footer request to the corre
 | Worldwide city rotation | VERIFIED OFFLINE ONLY | Fair rotation, windows, geographic bounds and atomic rollback tested; only US dataset subset queried live |
 | Website identity verification | VERIFIED OFFLINE ONLY | HTTPS, robots, DNS, visible name/locality, own-domain contact, deduplication and suppression tests; no live site visits |
 | Persistent discovery recovery | VERIFIED OFFLINE ONLY | SQLite transactions, restart/cursors, pending-target preservation, fault/circuit and worker tests |
-| Supabase / PostgreSQL | BLOCKED | No local connection or TEST_DATABASE_URL. Direct/session-pooler and migration/lock live checks remain required |
-| Gemini | BLOCKED | No local key; configured model IDs unchanged, account model access/free tier unknown, prices empty. No metadata or generation call |
-| Netlify | BLOCKED | No local token/site ID; quota/free use unknown. No site lookup/deployment; mocked recovery and local Chromium passed |
-| Gmail | BLOCKED | Owner reports GitHub setup, but no local OAuth/sender settings. Refresh/scopes/identity/draft not verified live; no mail operation |
+| Supabase / PostgreSQL | AWAITING OWNER RUN | GitHub DATABASE_URL name confirmed. Read-only TLS/schema/checksum/storage checks prepared; live connection, writes and advisory locks unverified. Local TEST_DATABASE_URL remains unavailable |
+| Gemini | AWAITING OWNER RUN | GitHub key name confirmed; configured model IDs unchanged. Metadata checks prepared, no call made; generation and account free quota remain unverified |
+| Netlify | AWAITING OWNER RUN | GitHub token/site ID names confirmed. Existing-site GET prepared; no lookup or deployment made, quota unknown |
+| Gmail | AWAITING OWNER RUN | GitHub OAuth/sender secret names confirmed. Refresh/profile/scope checks prepared; no credentialed check, draft or send made |
 | Base44 overlap controls | VERIFIED OFFLINE ONLY | Imported suppressions and exclusive-assignment gates tested; actual history/partition unvalidated, Base44 untouched |
 | Country legal compliance | BLOCKED | All policies disabled; sender/audience-specific review and evidence still required |
 | Resource budgets | VERIFIED LIVE | Final AWS probe within unchanged bounds; enforcement/crash cases tested offline; no hard OS memory/time guarantee |
-| GitHub Actions definitions | VERIFIED OFFLINE ONLY | Six YAML parses/reusable references and Git blob equality passed; no workflow execution |
+| GitHub Actions definitions | VERIFIED OFFLINE ONLY | Six production workflows preserved; new manual-only verification workflow added with owner/revision/write approval gates. Default-branch registration and owner dispatch pending |
 | Scheduled automation | BLOCKED | Deliberately disabled/unset; activation is not part of this task |
 
 ## Verification commands and results
 
 ```bash
-uv run pytest -q --cov=website_agent --cov-report=term --junitxml=artifacts/discovery-tests.xml
+uv run pytest -q --cov=website_agent --cov-report=term --junitxml=artifacts/live-verification-tests.xml
 uv run ruff check src scripts tests
 uv run ruff format --check src scripts tests
 uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file artifacts/audit-requirements.txt
@@ -90,20 +92,22 @@ git diff --check
 uv run website-agent doctor
 ```
 
-Final suite: **139 passed, 0 failed, 1 skipped, 80% coverage in 42.46 seconds**, Python 3.13.14. The only skip requires `TEST_DATABASE_URL` for actual PostgreSQL migration/lock testing. Real Chromium desktop/mobile tests ran locally; they used fixture deployment content, not a live Netlify deployment. The worker subprocess actually runs in its fixture test but its statements are not included in parent-process coverage. No failure was removed or assertion weakened; taxonomy fixtures were updated to assert the actual new category ID.
+Final suite: **168 passed, 0 failed, 1 skipped, 80% coverage in 35.18 seconds**, Python 3.13.14. The only skip requires `TEST_DATABASE_URL` for actual PostgreSQL migration/lock testing. Real Chromium desktop/mobile tests ran locally; they used fixture deployment content, not a live Netlify deployment. The worker subprocess actually runs in its fixture test but its statements are not included in parent-process coverage. No failure was removed or assertion weakened; taxonomy fixtures were updated to assert the actual new category ID.
 
-Ruff and formatting passed. Locked runtime dependency audit: **no known vulnerabilities found** (advisory scan, not certification). Workflow YAML/ref/blob checks and disabled country-policy checks passed. `doctor` reports the credential names as missing and external verification NOT RUN; this is the expected setup failure, not a successful live health check.
+The manual-verification module has 29 offline tests covering owner/revision/approval gates, read-only transactions, metadata-only account requests, scope uncertainty, secret/report isolation and failure reporting. No fixture result is claimed as a live account result.
+
+Ruff and formatting passed. Locked runtime dependency audit: **no known vulnerabilities found** (advisory scan, not certification). Workflow YAML/ref/blob checks and disabled country-policy checks passed. The earlier local `doctor` reported missing credentials; that result does not describe GitHub Secrets. Secret names are now confirmed at repository scope, but credentialed checks remain NOT RUN.
 
 ## Safe next steps and recovery
 
-1. Configure existing credentials securely in ignored `.env`; do not paste them into chat or recover GitHub Secrets. For discovery alone, only the existing authorized PostgreSQL URL is needed. Use `postgresql+psycopg://` with TLS and a direct or session-mode pooler, never a transaction-mode pooler. Use a separate isolated TEST_DATABASE_URL for test migrations.
-2. Keep `AUTOMATION_ENABLED=false`, `ENABLE_SENDING=false`, `ENABLE_ROUTINE_REPLIES=false` and country policies disabled. Review source/license notices and preserve/import relevant history suppressions without accessing Base44 from this agent.
-3. Run `uv sync --frozen --extra dev`, then `uv run website-agent migrate` only against the intended database if needed. In the configured city's local weekday/holiday-aware 08:00–20:00 research window, run `uv run website-agent discover --country US`. Never substitute `daily` for this isolated test.
-4. Inspect `artifacts/report.md`, `workflow_runs`, `run_events`, source evidence and the `discovery_task:US` checkpoint. Deferred outcomes return nonzero, preserve partial work and include `next_at`; retry the same country only after that time and within its local window. Seven consecutive no-progress retry cycles require diagnosis. Database failure is not success; restore access and reacquire the shared lock. Do not delete history/suppressions or reset ambiguous sends/deployments.
-5. For optional OSM, review provider terms, attribution and ODbL/database obligations; prepare a bounded regional XML extract with a real release, hash and permission reference, or a permitted private/contracted endpoint. Empty configuration is not operational redundancy. No unattended community Overpass backend is enabled.
-6. Once credentials are available, `uv run website-agent doctor --live` checks DB, configured Gemini metadata, Gmail identity and existing Netlify site access without generation/deployment/send. Its model-check result is persisted to the database. Missing free-tier evidence still blocks `live-smoke`; confirm account-specific nonbillable generation/hosting usage first. The current model IDs are not asserted to exist. Do not change them or billing silently.
+1. Follow [manual live verification](MANUAL_LIVE_VERIFICATION.md) using the existing GitHub Secrets. Register only the new workflow on `main` through a separate owner-reviewed change, leaving PR #6 unmerged. Review included account quotas and the database destination, then dispatch diagnostics on the reviewed feature SHA. No secret recreation or local `.env` is required.
+2. Keep `AUTOMATION_ENABLED=false`, `ENABLE_SENDING=false`, `ENABLE_ROUTINE_REPLIES=false` and country policies disabled. The new workflow hardcodes these gates and does not alter production settings.
+3. Review sanitized database and account diagnostics. Missing schema/migration checksums or storage headroom block discovery; any necessary database preparation requires separate owner authorization. This workflow does not run migrations. Account metadata does not prove free generation/deployment quota or long-term OAuth token validity.
+4. Only after explicit owner approval via a separate discover dispatch, execute isolated US discovery during its configured research window. Never substitute `daily`. Inspect aggregate inserts, verified websites, resource counters and status. Deferred/timeout outcomes require checkpoint inspection before another fresh approval; do not erase history/suppressions or reset ambiguous operations.
+5. OSM remains blocked pending a real bounded XML extract and runner staging, reviewed ODbL obligations, or an actually authorized private/contracted endpoint. The investigated 474 MB Geofabrik New York PBF exceeds current limits and is not directly supported by the XML reader. See the launch guide's source-linked investigation; no provider permission or setting was changed.
+6. The new diagnostics use read-only database transactions. Existing `doctor --live` persists model-check state and is not used. No generation, deployment, draft or mail send is included in this workflow. Account-specific free-tier and billing controls must be verified by the owner before dispatch.
 7. Gmail external OAuth Testing normally expires refresh tokens after seven days for these Gmail scopes. Review publishing status and applicable sensitive/restricted-scope verification, then reauthorize securely as required. Publishing does not guarantee permanent tokens; revocation/account policy can still require owner recovery. No prospect sending or routine replies may be enabled without separate authorization and validated Base44 history/audience separation and legal-basis evidence.
 
-The default Gemini monetary cap is an existing upper bound, not proof of free usage. Hosting, Supabase storage and Actions allowances are account-specific; this task activated no billing and bought nothing. Dataset budgets are per invocation, not a promise of result count or unlimited daily free infrastructure. The safe operational verdict remains blocked until the missing secure live prerequisites and verification are completed.
+The default Gemini monetary cap is an existing upper bound, not proof of free usage. Hosting, Supabase storage and Actions allowances are account-specific; this task activated no billing and bought nothing. Dataset budgets are per invocation, not a promise of result count or unlimited daily free infrastructure. The operational verdict remains blocked until owner registration, review and authorized live verification are completed.
 
 Primary references: [official Overture distribution/catalog](https://docs.overturemaps.org/getting-data/cloud-sources/), [Places schema](https://docs.overturemaps.org/schema/reference/places/place/), [taxonomy CSV](https://docs.overturemaps.org/taxonomy/2026-09-23.0/taxonomy.csv), [source attribution](https://docs.overturemaps.org/attribution/), [Google OAuth refresh-token expiration](https://developers.google.com/identity/protocols/oauth2#expiration). [PR #6](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/pull/6) contains the final commit and validation record.

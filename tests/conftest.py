@@ -46,6 +46,21 @@ def config(settings):
     from website_agent.settings import ModelAuthorization
 
     cfg = settings.config()
+    # Historical test fixtures intentionally use invented US/IN addresses.
+    # Production settings and the actual GitHub Actions workflow remain GB-only.
+    from website_agent.settings import Location
+
+    cfg.operating_country = "US"  # Fixture override, never a production setting.
+    cfg.locations = [
+        Location(
+            country="US", city="New York", timezone="America/New_York",
+            language="en", subdivision="NY", bbox=[-74.05, 40.65, -73.85, 40.85],
+        ),
+        Location(
+            country="IN", city="Mumbai", timezone="Asia/Kolkata",
+            language="hi", subdivision="MH", bbox=[72.78, 18.9, 72.98, 19.2],
+        ),
+    ]
     cfg.gemini.usage_authorizations = {
         model: ModelAuthorization(tier="free", review_reference="offline fixture", expires_on="2099-01-01")
         for model in cfg.gemini.capabilities

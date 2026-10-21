@@ -156,6 +156,54 @@ def safe_readonly_account_checks(settings):
     return checks
 
 
+def bootstrap_empty_agent_schema(settings, selected):
+    """Initialize a dedicated blank database once; never repair or overwrite live schema."""
+    # Only the already-validated repository owner's fresh manual one-click run may
+    # initialize an empty schema. Cron, reruns and other commands cannot do this.
+    if (
+        selected["mode"] != "daily"
+        or selected["scheduled"]
+        or os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
+        or os.environ.get("GITHUB_REF") != "refs/heads/main"
+        or os.environ.get("GITHUB_ACTOR") != "Nipun33333"
+        or os.environ.get("GITHUB_TRIGGERING_ACTOR") != "Nipun33333"
+        or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
+        or not os.environ.get("GITHUB_SHA") == selected["revision"]
+    ):
+        return "bootstrap_not_authorized"
+    try:
+        import certifi
+        from sqlalchemy import inspect
+
+        from website_agent import live_verification as live
+        from website_agent.cli import migrate
+        from website_agent.database import engine_for
+
+        # Protect existing Supabase public tables and partially applied migrations.
+        # A dedicated first-time agent schema must be completely empty.
+        with live.readonly_database(settings) as conn:
+            existing = set(inspect(conn).get_table_names(schema="public"))
+        if existing:
+            return "bootstrap_requires_review_nonempty_public_schema"
+
+        session_url = (
+            live.postgres_session_url(settings.database_url)
+            .update_query_dict(
+                {"sslmode": "verify-full", "sslrootcert": live.database_sslrootcert()}
+            )
+            .render_as_string(hide_password=False)
+        )
+        engine = engine_for(session_url)
+        try:
+            migrate(engine)
+        finally:
+            engine.dispose()
+        return "schema_initialized"
+    except Exception:
+        # The error might include credentials, hostnames or SQL. Do not log it.
+        return "bootstrap_failed_requires_schema_review"
+
+
 def execute(selected):
     from website_agent import live_verification as live
     from website_agent.settings import Settings
@@ -189,8 +237,21 @@ def execute(selected):
             check = live.database_check(settings, config)
         except Exception as exc:
             check = {"status": classify_database_error(exc), "discovery_ready": False}
+    bootstrap_status = None
+    if check.get("status") == "blocked_missing_migrations":
+        bootstrap_status = bootstrap_empty_agent_schema(settings, selected)
+        if bootstrap_status == "schema_initialized":
+            try:
+                check = live.database_check(settings, config)
+            except Exception as exc:
+                check = {
+                    "status": classify_database_error(exc),
+                    "discovery_ready": False,
+                }
     if not check.get("discovery_ready"):
         result = {"status": "blocked_database_preflight", "mode": mode, "database": check}
+        if bootstrap_status:
+            result["schema_bootstrap"] = bootstrap_status
         result.update(safe_readonly_account_checks(settings))
         live.publish(result)
         return 2
@@ -279,6 +340,7 @@ def execute(selected):
             "exit_code": code,
             "revision": selected["revision"],
             "sending_enabled": selected["sending"],
+            "schema_bootstrap": bootstrap_status or "not_needed",
             "aggregate_counts": counts,
         }
     )

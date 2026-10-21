@@ -66,7 +66,7 @@ def exclusion_reason(session, candidate, host):
         )
     ):
         return "duplicate_source_id"
-    # Imported Base44 domains AND mailbox-only historical exclusions apply.
+    # Existing domain and mailbox suppressions from any approved source apply.
     parts = host.split(".")
     suffixes = [".".join(parts[i:]) for i in range(len(parts))]
     if session.scalar(

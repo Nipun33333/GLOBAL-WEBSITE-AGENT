@@ -228,6 +228,25 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert secret not in json.dumps(result)
 
 
+def test_one_click_invalid_settings_report_without_secrets(monkeypatch):
+    from website_agent import settings as settings_module
+
+    def unavailable_settings(**_):
+        raise ValueError("private database URL or token")
+
+    monkeypatch.setattr(settings_module, "Settings", unavailable_settings)
+    published = Mock()
+    monkeypatch.setattr(live, "publish", published)
+    selected = master.plan(
+        env(ONE_CLICK_MODE="true", GITHUB_REF="refs/heads/main"), SHA
+    )
+    assert master.execute(selected) == 2
+    assert published.call_args.args[0] == {
+        "status": "blocked_application_config",
+        "mode": "daily",
+    }
+
+
 def test_readonly_account_diagnostics_never_trigger_mutations(monkeypatch, settings):
     from contextlib import nullcontext
 

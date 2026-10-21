@@ -1,7 +1,7 @@
 # All limits are GLOBAL. Edit configuration, not Python, to change coverage.
 limits:
   discovered: 1
-  inspected: 1
+  inspected: 3  # Check up to 3 candidates; produce at most one qualified demo.
   qualified: 1
   previews_daily: 2
   outreach_daily: 2

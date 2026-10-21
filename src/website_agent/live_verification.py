@@ -69,9 +69,17 @@ LAYERS = {"overture", "overture_aws", "overture_azure", "verified_cache", "osm_e
 class CheckFailed(Exception):
     """Never display provider exception text or connection strings."""
 
-    def __init__(self, http_status=None, provider_code=None):
+    DATABASE_REASONS = {
+        "invalid_database_url",
+        "unsupported_database_driver",
+        "transaction_pooler_not_supported",
+        "database_url_missing_required_parts",
+    }
+
+    def __init__(self, http_status=None, provider_code=None, reason=None):
         self.http_status = http_status
         self.provider_code = provider_code if provider_code in PROVIDER_CODES else None
+        self.reason = reason if reason in self.DATABASE_REASONS else None
 
 
 def guard(environ):
@@ -99,12 +107,27 @@ def guard(environ):
         raise CheckFailed()
 
 
+def postgres_session_url(raw):
+    """Normalize the standard Supabase URL without reading or disclosing credentials."""
+    try:
+        url = make_url(raw)
+        if url.drivername in {"postgresql", "postgres"}:
+            url = url.set(drivername="postgresql+psycopg")
+        if url.drivername != "postgresql+psycopg":
+            raise CheckFailed(reason="unsupported_database_driver")
+        # Transaction pooling breaks session advisory locks and must never be used.
+        if url.port == 6543:
+            raise CheckFailed(reason="transaction_pooler_not_supported")
+        if url.port not in {None, 5432} or not url.host or not url.username or not url.database:
+            raise CheckFailed(reason="database_url_missing_required_parts")
+        return url
+    except (TypeError, ValueError) as exc:
+        raise CheckFailed(reason="invalid_database_url") from None
+
+
 @contextmanager
 def readonly_database(settings):
-    url = make_url(settings.database_url)
-    # Supabase transaction-pooler port 6543 cannot preserve session advisory locks.
-    if url.drivername != "postgresql+psycopg" or url.port not in {None, 5432} or not url.host:
-        raise CheckFailed()
+    url = postgres_session_url(settings.database_url)
     engine = create_engine(
         url,
         hide_parameters=True,
@@ -112,12 +135,14 @@ def readonly_database(settings):
             "connect_timeout": 10,
             "sslmode": "verify-full",
             "sslrootcert": certifi.where(),
-            "options": "-c default_transaction_read_only=on -c statement_timeout=10000",
         },
     )
     try:
         with engine.connect() as conn:
+            # Set read-only on the transaction, not the startup packet: shared
+            # Supabase poolers may reject unsupported PostgreSQL startup options.
             conn.execute(text("SET TRANSACTION READ ONLY"))
+            conn.execute(text("SET LOCAL statement_timeout = 10000"))
             if conn.scalar(text("SHOW transaction_read_only")) != "on":
                 raise CheckFailed()
             yield conn

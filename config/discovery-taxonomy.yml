@@ -1,6 +1,6 @@
-# Explicit category allowlists; no substring or AI-based category expansion.
-review_reference: https://docs.overturemaps.org/guides/places/ (conservative exact
-  categories; 2026-10-21)
+# Reviewed category IDs; published hierarchy descendants retain their actual primary category.
+review_reference: https://docs.overturemaps.org/taxonomy/2026-09-23.0/taxonomy.csv
+  (reviewed exact IDs and published descendants; 2026-10-21)
 niches:
   salons:
     primary:
@@ -12,8 +12,7 @@ niches:
       - shop=beauty
     related:
       overture:
-      - barber_shop
-      - barbershop
+      - barber
       osm: []
   spas:
     primary:
@@ -31,7 +30,6 @@ niches:
     primary:
       overture:
       - gym
-      - fitness_center
       osm:
       - leisure=fitness_centre
     related:
@@ -49,17 +47,15 @@ niches:
     related:
       overture:
       - gym
-      - fitness_center
       osm: []
   dentists:
     primary:
       overture:
-      - dentist
+      - dental_clinic
       osm:
       - amenity=dentist
     related:
-      overture:
-      - dental_clinic
+      overture: []
       osm: []
   restaurants:
     primary:
@@ -85,7 +81,6 @@ niches:
   retail stores:
     primary:
       overture:
-      - retail
       - clothing_store
       osm:
       - shop=clothes
@@ -97,8 +92,7 @@ niches:
   barbershops:
     primary:
       overture:
-      - barber_shop
-      - barbershop
+      - barber
       osm:
       - shop=hairdresser
     related:
@@ -108,19 +102,18 @@ niches:
   clinics:
     primary:
       overture:
-      - medical_clinic
-      - clinic
+      - primary_care_or_general_clinic
+      - walk_in_clinic
       osm:
       - amenity=clinic
     related:
       overture:
-      - doctor
+      - doctors_office
       osm:
       - amenity=doctors
   repair shops:
     primary:
       overture:
-      - auto_repair
       - automotive_repair
       osm:
       - shop=car_repair
@@ -137,18 +130,17 @@ niches:
       - office=accountant
     related:
       overture:
-      - tax_preparation
+      - tax_service
       osm:
       - office=tax_advisor
   barber:
     primary:
       overture:
-      - barber_shop
+      - barber
       osm:
       - shop=hairdresser
     related:
       overture:
-      - barbershop
       - hair_salon
       osm: []
   cafe:
@@ -161,3 +153,4 @@ niches:
       overture:
       - coffee_shop
       osm: []
+taxonomy_sha256: 59eecbf9e24859bcdab459e8efeea673b7fcbab06b45bd1c7067f215b3bc25d4

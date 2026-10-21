@@ -58,7 +58,7 @@ Public research honors robots.txt, refuses restricted/private network addresses,
 
 ## 4. Gmail OAuth
 
-Enable Gmail API in your own Google Cloud project and configure an OAuth consent screen. Use a Desktop OAuth client for the local authorization helper. Add only the sender account as a test user when appropriate. Testing-mode refresh tokens and restricted Gmail scopes can have account/publishing requirements; complete Google's applicable verification process before unattended production use.
+Enable Gmail API in your own Google Cloud project and configure an OAuth consent screen. Use a Desktop OAuth client for the local authorization helper. Add only the sender account as a test user when appropriate. For an external consent screen in Testing, Google normally expires refresh tokens after seven days unless only basic identity scopes are requested; this application requests Gmail scopes, so that exception does not apply. Move to the appropriate publishing status, complete Google's applicable sensitive/restricted-scope verification requirements, then reauthorize securely when required. Publishing alone does not guarantee token permanence: revocation, inactivity and account policies can also invalidate it. Do not automate repeated reauthorization or paste tokens into chat. [Google refresh-token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 Requested scopes:
 
@@ -117,3 +117,7 @@ uv run website-agent report --days 7
 ```
 
 Read-only doctor checks do not verify generation, quota affordability, provider rights, or successful deployments. The live smoke test invokes paid/quota-bearing APIs only when explicitly run after configuration. It drafts to the owner, never sends. `daily` runs the actual discovery-to-draft pipeline. Check PostgreSQL and the run report; AI assertions are never deployment/send proof.
+
+## Current live setup prerequisite
+
+See [LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md) for measured evidence. GitHub Secrets cannot be read back and are not downloaded by this task. Configure existing credentials directly in the ignored local `.env` file using your own secure process. Never paste credentials in chat or commit the file. Discovery-only needs `DATABASE_URL`; model, hosting and Gmail checks separately need their existing settings. Keep `AUTOMATION_ENABLED=false`, `ENABLE_SENDING=false`, and `ENABLE_ROUTINE_REPLIES=false`. Do not activate billing. Confirm actual account free usage before `live-smoke`; a configured API key alone does not establish that.

@@ -2,12 +2,20 @@
 
 import io
 import json
+import math
 import re
-from urllib.parse import quote
+from urllib.parse import urlsplit
 
 from defusedxml import ElementTree as ET
 
-from website_agent.discovery_support import DiscoveryFault, inside, permission, resource, schema
+from website_agent.discovery_support import (
+    DiscoveryFault,
+    category_matches,
+    inside,
+    permission,
+    resource,
+    schema,
+)
 
 AWS = "https://overturemaps-us-west-2.s3.us-west-2.amazonaws.com"
 AZURE = "https://overturemapswestus2.blob.core.windows.net"
@@ -21,6 +29,32 @@ OSM_ATTRIBUTION = "© OpenStreetMap contributors; https://www.openstreetmap.org/
 class RangeFile(io.RawIOBase):
     def __init__(self, http, url, size):
         self.http, self.url, self.size, self.pos = http, url, size, 0
+        self.ranges = []
+
+    def prefetch(self, group, columns):
+        """Coalesce selected column chunks, avoiding one HTTP request per nested leaf."""
+        spans = []
+        for i in range(group.num_columns):
+            column = group.column(i)
+            if column.path_in_schema.split(".")[0] not in columns:
+                continue
+            start = column.dictionary_page_offset
+            if start is None or start < 0:
+                start = column.data_page_offset
+            end = start + column.total_compressed_size
+            if not 0 <= start < end <= self.size:
+                raise schema("invalid_column_chunk_offset")
+            spans.append((start, end))
+        merged = []
+        for start, end in sorted(spans):
+            if merged and start - merged[-1][1] <= 65536 and end - merged[-1][0] <= 8_000_000:
+                merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+            else:
+                merged.append((start, end))
+        self.ranges = []
+        for start, end in merged:
+            self.seek(start)
+            self.ranges.append((start, self.read(end - start)))
 
     def readable(self):
         return True
@@ -42,6 +76,10 @@ class RangeFile(io.RawIOBase):
         if not size:
             return b""
         start, end = self.pos, self.pos + size - 1
+        for offset, data in self.ranges:
+            if offset <= start and end < offset + len(data):
+                self.pos += size
+                return data[start - offset : end - offset + 1]
         raw, headers = self.http.get(self.url, cap=size, headers={"Range": f"bytes={start}-{end}"})
         if len(raw) != size or headers.get("content-range") != f"bytes {start}-{end}/{self.size}":
             raise schema("invalid_or_partial_range")
@@ -61,41 +99,47 @@ def release(config, http):
     return value
 
 
-def objects(http, endpoint, version):
-    """Bounded listing, not a download of the global dataset."""
-    prefix = f"{version}/theme=places/type=place/"
-    if endpoint == "aws":
-        raw, _ = http.get(
-            AWS + "/",
-            params={"list-type": "2", "prefix": "release/" + prefix, "max-keys": 1000},
-            cap=2_000_000,
-        )
-        tree = ET.fromstring(raw)
-        if tree.findtext("{*}IsTruncated") == "true":
-            raise resource("object_listing_budget")
-        items = [(x.findtext("{*}Key"), x.findtext("{*}Size")) for x in tree.findall("{*}Contents")]
-        base, expected = AWS + "/", "release/" + prefix
-    else:
-        raw, _ = http.get(
-            AZURE + "/release",
-            params={"restype": "container", "comp": "list", "prefix": prefix, "maxresults": 1000},
-            cap=2_000_000,
-        )
-        tree = ET.fromstring(raw)
-        if tree.findtext("NextMarker"):
-            raise resource("object_listing_budget")
-        items = [
-            (x.findtext("Name"), x.findtext("Properties/Content-Length")) for x in tree.findall("Blobs/Blob")
-        ]
-        base, expected = AZURE + "/release/", prefix
+def spatial_objects(http, endpoint, version, bbox):
+    """Use official STAC file bounds; never assume global listing order is geographic."""
+    base = f"https://stac.overturemaps.org/{version}/places/place/"
+    raw, _ = http.get(base + "collection.json", cap=2_000_000)
+    collection = json.loads(raw)
+    links = collection.get("links", [])
+    items = sorted({x["href"] for x in links if x.get("rel") == "item"})
+    # A changed/paged catalog must not silently produce incomplete coverage.
+    if (
+        collection.get("type") != "Collection"
+        or not items
+        or any(x.get("rel") == "next" for x in links)
+        or collection.get("partition:file_count") != len(items)
+    ):
+        raise schema("stac_incomplete_file_index")
     result = []
-    for name, size in items:
-        if not name or not name.startswith(expected) or ".." in name:
-            raise schema("unexpected_object_path")
-        if name.endswith(".parquet"):
-            result.append((base + quote(name, safe="/=.-_"), int(size)))
-    if not result:
-        raise schema("release_has_no_place_objects")
+    for href in items:
+        if not href.startswith(base) or ".." in href or urlsplit(href).query:
+            raise schema("unexpected_stac_item_path")
+        raw, _ = http.get(href, cap=100_000)
+        item = json.loads(raw)
+        bounds = item.get("bbox", [])
+        if len(bounds) != 4 or not all(isinstance(x, (float, int)) and math.isfinite(x) for x in bounds):
+            raise schema("invalid_stac_bbox")
+        if bounds[0] > bounds[2] or bounds[1] > bounds[3]:
+            raise schema("unsupported_stac_bbox")
+        if bounds[2] < bbox[0] or bounds[0] > bbox[2] or bounds[3] < bbox[1] or bounds[1] > bbox[3]:
+            continue
+        asset = item.get("assets", {}).get(endpoint, {})
+        url, size = asset.get("href", ""), asset.get("file:size")
+        expected = (AWS if endpoint == "aws" else AZURE) + f"/release/{version}/theme=places/type=place/"
+        if (
+            not url.startswith(expected)
+            or ".." in url
+            or not url.endswith(".parquet")
+            or urlsplit(url).query
+            or not isinstance(size, int)
+            or size < 8
+        ):
+            raise schema("unexpected_stac_asset")
+        result.append((url, size))
     return sorted(result)
 
 
@@ -121,9 +165,9 @@ def overture_record(row, version):
     category = (row.get("taxonomy") or row.get("categories") or {}).get("primary")
     address = next((a for a in row.get("addresses") or [] if a.get("country") and a.get("locality")), {})
     websites = row.get("websites") or []
-    if not (websites and address and category and row.get("names", {}).get("primary")):
+    if not (websites and address and category and (row.get("names") or {}).get("primary")):
         return None
-    if row.get("operating_status") in {"permanently_closed", "closed"}:
+    if row.get("operating_status") in {"permanently_closed", "closed"} or row.get("confidence") == 0:
         return None
     return {
         "provider": "overture",
@@ -133,6 +177,7 @@ def overture_record(row, version):
         "country": address["country"],
         "city": address["locality"],
         "category": category,
+        "category_hierarchy": (row.get("taxonomy") or {}).get("hierarchy") or [],
         "lon": (bbox["xmin"] + bbox["xmax"]) / 2,
         "lat": (bbox["ymin"] + bbox["ymax"]) / 2,
         "release": version,
@@ -147,16 +192,18 @@ def overture_query(config, query, http):
     import pyarrow.parquet as pq
 
     version = query.get("resolved_release") or release(config, http)
-    listing = objects(http, query["endpoint"], version)
+    listing = spatial_objects(http, query["endpoint"], version, query["bbox"])
     cursor = query.get("cursor") or {"file": 0, "group": 0, "row": 0}
     first = cursor["file"]
     results = []
+    metrics = {"files_examined": 0, "row_groups_read": 0, "records_scanned": 0, "candidates_identified": 0}
     progress = dict(cursor)
     try:
         for file_index in range(first, min(len(listing), first + config.max_files_per_query)):
-            progress = {"file": file_index, "group": 0, "row": 0}
+            progress = dict(cursor) if file_index == first else {"file": file_index, "group": 0, "row": 0}
             http.budget.check()
             url, size = listing[file_index]
+            metrics["files_examined"] += 1
             with RangeFile(http, url, size) as reader:
                 parquet = pq.ParquetFile(
                     reader,
@@ -170,31 +217,39 @@ def overture_query(config, query, http):
                 if not required <= names or not {"taxonomy", "categories"} & names:
                     raise schema()
                 columns = sorted(
-                    (required | {"taxonomy", "categories", "sources", "operating_status"}) & names
+                    (required | {"taxonomy", "categories", "sources", "operating_status", "confidence"})
+                    & names
                 )
                 for group_index in range(
                     cursor["group"] if file_index == first else 0, parquet.num_row_groups
                 ):
-                    progress = {"file": file_index, "group": group_index, "row": 0}
+                    progress = {
+                        "file": file_index,
+                        "group": group_index,
+                        "row": cursor["row"] if file_index == first and group_index == cursor["group"] else 0,
+                    }
                     group = parquet.metadata.row_group(group_index)
                     if not overlaps(group, query["bbox"]):
                         continue
                     if group.total_byte_size > config.max_memory_mb * 1024 * 1024 // 2:
                         raise resource("parquet_row_group_memory_budget")
+                    reader.prefetch(group, columns)
+                    metrics["row_groups_read"] += 1
                     row_index = 0
                     for batch in parquet.iter_batches(
                         batch_size=128, row_groups=[group_index], columns=columns, use_threads=False
                     ):
                         http.budget.check()
                         for row in batch.to_pylist():
+                            metrics["records_scanned"] += 1
                             row_index += 1
-                            progress = {"file": file_index, "group": group_index, "row": row_index}
                             if (
                                 file_index == first
                                 and group_index == cursor["group"]
                                 and row_index <= cursor["row"]
                             ):
                                 continue
+                            progress = {"file": file_index, "group": group_index, "row": row_index}
                             try:
                                 candidate = overture_record(row, version)
                             except (KeyError, TypeError, ValueError):
@@ -202,15 +257,21 @@ def overture_query(config, query, http):
                             if (
                                 candidate
                                 and inside(query["bbox"], candidate["lon"], candidate["lat"])
-                                and candidate["category"] in query["categories"]
+                                and category_matches(
+                                    candidate["category"],
+                                    candidate["category_hierarchy"],
+                                    query["categories"],
+                                )
                             ):
                                 results.append(candidate)
+                                metrics["candidates_identified"] += 1
                             if len(results) >= config.max_candidates:
                                 return {
                                     "records": results,
                                     "cursor": {"file": file_index, "group": group_index, "row": row_index},
                                     "release": version,
                                     "exhausted": False,
+                                    "metrics": metrics,
                                 }
         next_file = min(len(listing), first + config.max_files_per_query)
         return {
@@ -218,6 +279,7 @@ def overture_query(config, query, http):
             "cursor": {"file": next_file, "group": 0, "row": 0},
             "release": version,
             "exhausted": next_file == len(listing),
+            "metrics": metrics,
         }
     except DiscoveryFault as exc:
         if results or progress != cursor:
@@ -226,6 +288,7 @@ def overture_query(config, query, http):
                 "cursor": progress,
                 "release": version,
                 "exhausted": False,
+                "metrics": metrics,
                 "fault": {"status": exc.status, "reason": exc.reason, "retry_after": exc.retry_after},
             }
         raise

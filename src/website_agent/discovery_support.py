@@ -57,9 +57,9 @@ class Budget:
 
     def consume(self, size):
         self.check()
-        if self.bytes + size > self.config.max_download_bytes:
-            raise resource("network_byte_budget")
         self.bytes += size
+        if self.bytes > self.config.max_download_bytes:
+            raise resource("network_byte_budget")
 
     def query(self):
         self.check()
@@ -173,3 +173,10 @@ def token(value):
 
 def inside(bbox, lon, lat):
     return bbox[0] <= lon <= bbox[2] and bbox[1] <= lat <= bbox[3]
+
+
+def category_matches(category, hierarchy, allowed):
+    # Only exact reviewed category IDs, including their published descendants.
+    return category in allowed or bool(
+        hierarchy and hierarchy[-1] == category and set(hierarchy) & set(allowed)
+    )

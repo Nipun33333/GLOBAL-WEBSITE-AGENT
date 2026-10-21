@@ -1,0 +1,24 @@
+taxonomy,primary,displayName,level,isBasic,basicCategory
+food_and_drink > casual_eatery,casual_eatery,Casual Eatery,1,true,casual_eatery
+food_and_drink > casual_eatery > cafe,cafe,Cafe,2,true,cafe
+food_and_drink > casual_eatery > diner,diner,Diner,2,false,casual_eatery
+food_and_drink > non_alcoholic_beverage_venue > coffee_shop,coffee_shop,Coffee Shop,2,true,coffee_shop
+food_and_drink > restaurant,restaurant,Restaurant,1,true,restaurant
+health_care > emergency_or_urgent_care_facility > walk_in_clinic,walk_in_clinic,Walk-In Clinic,2,true,walk_in_clinic
+health_care > outpatient_care_facility > dental_clinic,dental_clinic,Dental Clinic,2,true,dental_clinic
+health_care > outpatient_care_facility > diagnostics_imaging_or_lab_service > doctors_office,doctors_office,Doctors Office,3,false,diagnostics_imaging_or_lab_service
+health_care > outpatient_care_facility > primary_care_or_general_clinic,primary_care_or_general_clinic,Primary Care or General Clinic,2,true,primary_care_or_general_clinic
+lifestyle_services > personal_or_beauty_service > barber,barber,Barber,2,false,personal_or_beauty_service
+lifestyle_services > personal_or_beauty_service > beauty_salon,beauty_salon,Beauty Salon,2,false,personal_or_beauty_service
+lifestyle_services > personal_or_beauty_service > hair_salon,hair_salon,Hair Salon,2,false,personal_or_beauty_service
+lifestyle_services > wellness_service > spa,spa,Spa,2,false,wellness_service
+lifestyle_services > wellness_service > spa > day_spa,day_spa,Day Spa,3,false,wellness_service
+services_and_business > financial_service > accountant,accountant,Accountant,2,false,financial_service
+services_and_business > financial_service > tax_service,tax_service,Tax Service,2,false,financial_service
+shopping > fashion_and_apparel_store > clothing_store,clothing_store,Clothing Store,2,false,fashion_and_apparel_store
+shopping > specialty_store > flowers_and_gifts_store > gift_shop,gift_shop,Gift Shop,3,false,flowers_and_gifts_store
+sports_and_recreation > sport_or_fitness_facility > fitness_studio,fitness_studio,Fitness Studio,2,true,fitness_studio
+sports_and_recreation > sport_or_fitness_facility > fitness_studio > yoga_studio,yoga_studio,Yoga Studio,3,false,fitness_studio
+sports_and_recreation > sport_or_fitness_facility > gym,gym,Gym,2,true,gym
+travel_and_transportation > vehicle_service > automotive_service > automotive_repair,automotive_repair,Automotive Repair,3,false,automotive_service
+travel_and_transportation > vehicle_service > automotive_service > tire_shop,tire_shop,Tire Shop,3,false,automotive_service

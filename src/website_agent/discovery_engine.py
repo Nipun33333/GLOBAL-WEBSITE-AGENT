@@ -3,6 +3,7 @@
 import copy
 import json
 import math
+import re
 import subprocess
 import sys
 import time
@@ -58,6 +59,7 @@ def run_reader(config, query, budget):
         raise resource("request_or_network_budget")
     atomic_json(spec, {"config": remaining.model_dump(), "query": query}, config.max_disk_bytes // 2)
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    accounted = False
     with subprocess.Popen(
         [sys.executable, "-m", "website_agent.discovery_worker", str(spec), str(output)],
         stdout=subprocess.DEVNULL,
@@ -80,6 +82,7 @@ def run_reader(config, query, budget):
             result = json.loads(output.read_text())
             budget.requests += result["requests"]
             budget.bytes += result["bytes"]
+            accounted = True
             if "fault" in result:
                 raise DiscoveryFault(**result["fault"])
             return result["data"]
@@ -87,8 +90,10 @@ def run_reader(config, query, budget):
             if process.poll() is None:
                 process.kill()
                 process.wait()
-                # Unknown partial transfer: conservatively reserve the remaining allowance.
+            if not accounted:
+                # A crashed/exited worker can also have transferred unknown payloads.
                 budget.bytes, budget.requests = config.max_download_bytes, config.max_requests
+                budget.accounting_unknown = True
             raise
         finally:
             spec.unlink(missing_ok=True)
@@ -138,6 +143,13 @@ class DiscoveryEngine:
         self.reader, self.clock, self.selector = reader, clock, selector
         self.cache = Path("private/discovery-cache")
         self.accepted = self.unverified = 0
+        self.metrics = {
+            "files_examined": 0,
+            "row_groups_read": 0,
+            "records_scanned": 0,
+            "candidates_identified": 0,
+        }
+        self.layers, self.rejections = [], {}
 
     def save(self, key, state, *, commit=True):
         assert_lock(self.session)
@@ -156,7 +168,7 @@ class DiscoveryEngine:
         entries, visited = [], set()
         for _ in range(self.options.max_cities):
             selected = self.selector(
-                self.session, self.config, country, at=self.clock(), exclude_cities=visited
+                self.session, self.config, country, at=self.clock(), exclude_cities=visited, commit=False
             )
             if not selected:
                 break
@@ -203,6 +215,8 @@ class DiscoveryEngine:
 
     def query(self, query):
         source = query["source"]
+        if source not in self.layers:
+            self.layers.append(source)
         if source in {"osm_extract", "overpass"}:
             from website_agent.discovery_datasets import osm_allowed
 
@@ -218,6 +232,7 @@ class DiscoveryEngine:
         health = get_config(self.session, health_key)
         cache_key = fingerprint(
             {
+                "reader_version": 2,
                 "query": {k: v for k, v in query.items() if k not in {"fault", "done"}},
                 "release": self.options.release,
                 "license": self.options.osm_license_review_reference,
@@ -225,6 +240,7 @@ class DiscoveryEngine:
             }
         )
         cache_path = self.cache / (cache_key + ".json")
+        cached = None
         if (
             self.options.cache_hours
             and cache_path.exists()
@@ -236,12 +252,15 @@ class DiscoveryEngine:
                     saved["digest"] == fingerprint(saved["data"])
                     and datetime.fromisoformat(saved["expires"]) > self.clock()
                 ):
-                    return saved["data"]
-            except (ValueError, KeyError):
+                    cached = saved["data"]
+            except (ValueError, KeyError, TypeError, OSError):
                 pass
         if health.get("permanent"):
             raise DiscoveryFault(health["status"], health["reason"])
         if health.get("next_at") and datetime.fromisoformat(health["next_at"]) > self.clock():
+            if cached and health["status"] == "deferred_provider_unavailable":
+                self.layers.append("verified_cache")
+                return {**cached, "metrics": {}, "from_cache": True}
             raise DiscoveryFault(
                 health["status"],
                 health["reason"],
@@ -250,11 +269,15 @@ class DiscoveryEngine:
         self.budget.query()
         try:
             try:
+                self.layers.append("overture_aws" if source == "overture" else source)
                 data = self.reader(self.options, {**query, "endpoint": "aws"}, self.budget)
             except DiscoveryFault as exc:
                 if source != "overture" or exc.status != "deferred_provider_unavailable" or exc.retry_after:
                     raise
+                self.layers.append("overture_azure")
                 data = self.reader(self.options, {**query, "endpoint": "azure"}, self.budget)
+            for name in self.metrics:
+                self.metrics[name] += data.get("metrics", {}).get(name, 0)
             if data.get("fault"):
                 fault = data["fault"]
                 self.save(
@@ -305,6 +328,9 @@ class DiscoveryEngine:
                         ).isoformat(),
                     },
                 )
+            if cached and exc.status in {"deferred_provider_unavailable", "deferred_resource_limit"}:
+                self.layers.append("verified_cache")
+                return {**cached, "metrics": {}, "from_cache": True}
             raise
 
     def admit(self, raw, query, state, key):
@@ -319,8 +345,14 @@ class DiscoveryEngine:
             OSError,
             urllib3.exceptions.HTTPError,
             httpx.TransportError,
-        ):
+        ) as exc:
             self.unverified += 1
+            reason = (
+                str(exc)
+                if isinstance(exc, Blocked) and re.fullmatch(r"[a-z_]+", str(exc))
+                else "invalid_candidate_or_website_access"
+            )
+            self.rejections[reason] = self.rejections.get(reason, 0) + 1
             return False
         host = domain(url)
         if duplicate_or_suppressed(self.session, candidate, host):
@@ -369,6 +401,7 @@ class DiscoveryEngine:
         key = "discovery_task:" + (country or "worldwide")
         signature = fingerprint(
             {
+                "reader_version": 2,
                 "options": self.options.model_dump(),
                 "locations": [x.model_dump() for x in self.config.locations],
                 "niches": self.config.niches,
@@ -508,7 +541,8 @@ class DiscoveryEngine:
         # Database errors and hard termination propagate: no false success, previous commit survives.
 
     def finish(self, key, state, status, reason, retry_after=0):
-        complete = status.startswith("completed")
+        # Reaching the invocation target must not discard the pending durable batch.
+        complete = status.startswith("completed") and reason != "run_target_reached"
         delay = (
             self.options.empty_retry_hours * 3600
             if complete
@@ -532,5 +566,19 @@ class DiscoveryEngine:
             "next_at": state["next_at"],
             "requests": self.budget.requests,
             "bytes": self.budget.bytes,
+            "transfer_counts_are_upper_bounds": getattr(self.budget, "accounting_unknown", False),
             "queries": self.budget.queries,
+            **self.metrics,
+            "candidate_verifications": self.budget.candidates,
+            "already_known_duplicates": sum(
+                self.rejections.get(k, 0) for k in ("duplicate_domain", "duplicate_source_id")
+            ),
+            "official_websites_verified": self.accepted,
+            "businesses_inserted": self.accepted,
+            "rejection_reasons": self.rejections,
+            "fallback_layers_attempted": list(dict.fromkeys(self.layers)),
+            "elapsed_seconds": round(self.budget.clock() - self.budget.started, 3),
+            "remaining_queries": sum(not q.get("done") for q in state["plan"]),
+            "pending_candidates": len((state.get("pending") or {}).get("data", {}).get("records", []))
+            - (state.get("pending") or {}).get("index", 0),
         }

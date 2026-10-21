@@ -29,7 +29,7 @@ def business_due(sent_at, country, timezone, subdivision=None, days=5):
     return local
 
 
-def rotate(session, config, country=None, at=None, exclude_cities=None):
+def rotate(session, config, country=None, at=None, exclude_cities=None, *, commit=True):
     at = at or now()
     for location in config.locations:
         for niche in config.niches:
@@ -42,7 +42,9 @@ def rotate(session, config, country=None, at=None, exclude_cities=None):
             )
             if not row:
                 session.add(LocationQueue(country=location.country, city=location.city, niche=niche))
-    session.commit()
+    session.flush()
+    if commit:
+        session.commit()
     candidates = []
     rows = list(session.scalars(select(LocationQueue)))
     counts = {c: sum(r.searches for r in rows if r.country == c) for c in {r.country for r in rows}}
@@ -82,5 +84,8 @@ def rotate(session, config, country=None, at=None, exclude_cities=None):
         return None
     _, _, _, _, row, location = min(candidates, key=lambda c: c[:4])
     row.last_search, row.searches = at, row.searches + 1
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return row, location

@@ -207,11 +207,11 @@ def test_related_niche_fallback(session, settings, discovery_setup):
     cfg.discovery.source_priority = ["overture"]
 
     def reader(c, q, b):
-        return batch([record(category="barber_shop")]) if q["related"] else batch()
+        return batch([record(category="barber")]) if q["related"] else batch()
 
     result = make(session, settings, reader).run()
     assert result["accepted"] == 1
-    assert session.scalar(select(Prospect)).niche == "barber_shop"
+    assert session.scalar(select(Prospect)).niche == "barber"
 
 
 def test_geographic_radius_fallback(session, settings, discovery_setup):
@@ -396,8 +396,10 @@ def test_valid_cache_reused_offline(session, settings, discovery_setup):
     engine = make(session, settings, reader)
     query = engine.plan(None)[0]
     engine.query(query)
-    engine.reader = Mock(side_effect=AssertionError("cached query must not call network"))
+    engine.reader = Mock(side_effect=unavailable("offline"))
     assert engine.query(query)["records"][0]["name"] == "Fixture Salon"
+    assert engine.reader.call_count == 2
+    assert engine.layers[-3:] == ["overture_aws", "overture_azure", "verified_cache"]
 
 
 def response(status, content=b"", headers=None):
@@ -480,13 +482,17 @@ def test_actual_parquet_range_reader_with_offline_http(monkeypatch):
 
     import website_agent.discovery_datasets as ds
 
-    monkeypatch.setattr(ds, "objects", lambda *a: [("https://fixture.example/file.parquet", len(raw))])
+    monkeypatch.setattr(
+        ds, "spatial_objects", lambda *a: [("https://fixture.example/file.parquet", len(raw))]
+    )
     cfg = DiscoveryConfig()
     http = BoundedHTTP(Budget(cfg), httpx.Client(transport=httpx.MockTransport(handler)))
     data = overture_query(
         cfg, {"endpoint": "aws", "bbox": [-74, 40, -73, 41], "categories": ["hair_salon"]}, http
     )
     assert data["exhausted"] and data["records"][0]["provider_id"] == "fixture-1"
+    assert data["metrics"]["records_scanned"] == 1
+    assert http.budget.requests <= 3  # nested columns are coalesced
 
 
 def test_osm_regional_extract_real_parser_and_integrity(tmp_path, monkeypatch):
@@ -629,6 +635,7 @@ def test_direct_budget_enforcement(tmp_path, monkeypatch):
         budget.request()
     with pytest.raises(DiscoveryFault, match="network_byte_budget"):
         budget.consume(1025)
+    assert budget.bytes == 1025  # Count the received over-limit chunk, too.
     with pytest.raises(DiscoveryFault, match="disk_budget"):
         atomic_json(tmp_path / "too-big.json", {"value": "x" * 2000}, 1024)
     import website_agent.discovery_support as support
@@ -793,3 +800,248 @@ def test_actual_category_preserves_scheduler_relevance(session, settings, config
     pipe.start("daily", "relevance-fixture")
     pipe.audit(prospect)
     assert queue.relevant == 1 and prospect.niche == "hair_salon"
+
+
+@pytest.mark.parametrize("endpoint", ["aws", "azure"])
+def test_stac_spatial_index_selects_only_intersecting_assets(endpoint):
+    from website_agent.discovery_datasets import AWS, AZURE, spatial_objects
+
+    base = "https://stac.overturemaps.org/2026-09-23.1/places/place/"
+    urls = [base + f"{i}.json" for i in range(2)]
+    origin = AWS if endpoint == "aws" else AZURE
+    asset = origin + "/release/2026-09-23.1/theme=places/type=place/ny.parquet"
+    documents = {
+        base + "collection.json": {
+            "type": "Collection",
+            "partition:file_count": 2,
+            "links": [{"rel": "item", "href": u} for u in urls],
+        },
+        urls[0]: {"bbox": [0, 0, 10, 10], "assets": {}},
+        urls[1]: {"bbox": [-75, 40, -73, 42], "assets": {endpoint: {"href": asset, "file:size": 100}}},
+    }
+    http = BoundedHTTP(
+        Budget(DiscoveryConfig()),
+        httpx.Client(
+            transport=httpx.MockTransport(lambda r: response(200, json.dumps(documents[str(r.url)]).encode()))
+        ),
+    )
+    assert spatial_objects(http, endpoint, "2026-09-23.1", [-74, 40, -73, 41]) == [(asset, 100)]
+    assert http.budget.requests == 3
+
+
+@pytest.mark.parametrize("change", ["pagination", "missing", "external", "asset"])
+def test_stac_incomplete_or_untrusted_catalog_fails_closed(change):
+    from website_agent.discovery_datasets import spatial_objects
+
+    base = "https://stac.overturemaps.org/2026-09-23.1/places/place/"
+    doc = {
+        "type": "Collection",
+        "partition:file_count": 1,
+        "links": [{"rel": "item", "href": base + "0.json"}],
+    }
+    if change == "pagination":
+        doc["links"].append({"rel": "next", "href": base + "next.json"})
+    elif change == "missing":
+        doc["partition:file_count"] = 2
+    elif change == "external":
+        doc["links"][0]["href"] = "https://untrusted.example/item.json"
+    item = {
+        "bbox": [-75, 40, -73, 42],
+        "assets": {"aws": {"href": "https://untrusted.example/a.parquet", "file:size": 100}},
+    }
+    http = BoundedHTTP(
+        Budget(DiscoveryConfig()),
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda r: response(
+                    200, json.dumps(doc if str(r.url).endswith("collection.json") else item).encode()
+                )
+            )
+        ),
+    )
+    with pytest.raises(DiscoveryFault):
+        spatial_objects(http, "aws", "2026-09-23.1", [-74, 40, -73, 41])
+    assert http.budget.requests <= 2
+
+
+def test_target_keeps_pending_records_for_restart(session, settings, discovery_setup):
+    cfg, make = discovery_setup
+    cfg.discovery.source_priority = ["overture"]
+    cfg.limits.discovered = 1
+    reader = Mock(
+        return_value=batch([record(), record(provider_id="fixture-2", url="https://second.example")])
+    )
+    first = make(session, settings, reader).run()
+    state = get_config(session, "discovery_task:worldwide")
+    assert first["accepted"] == 1 and first["pending_candidates"] == 1 and not state["complete"]
+    engine = make(session, settings, Mock(side_effect=AssertionError("pending must survive")))
+    engine.clock = lambda: AT + timedelta(hours=2)
+    result = engine.run()
+    assert result["accepted"] == 1 and len(session.scalars(select(Prospect)).all()) == 2
+
+
+def test_exact_published_descendant_keeps_actual_category(session, settings, discovery_setup):
+    cfg, make = discovery_setup
+    cfg.discovery.source_priority = ["overture"]
+    result = make(
+        session,
+        settings,
+        lambda *a: batch(
+            [
+                record(
+                    category="specialist_hair_salon",
+                    category_hierarchy=["lifestyle_services", "hair_salon", "specialist_hair_salon"],
+                )
+            ]
+        ),
+    ).run()
+    assert result["accepted"] == 1
+    assert session.scalar(select(Prospect)).niche == "specialist_hair_salon"
+    assert session.scalar(select(BusinessSource)).evidence["category_hierarchy"][1] == "hair_salon"
+
+
+def test_cache_after_429_does_not_try_azure_or_repeat_paused_network(session, settings, discovery_setup):
+    cfg, make = discovery_setup
+    cfg.discovery.cache_hours = 24
+    engine = make(session, settings, Mock(return_value=batch([record()])))
+    query = engine.plan(None)[0]
+    engine.query(query)
+    engine.reader = Mock(side_effect=unavailable("provider_rate_limited", 7200))
+    assert engine.query(query)["from_cache"]
+    assert engine.query(query)["from_cache"]
+    engine.reader.assert_called_once()
+    assert "overture_azure" not in engine.layers
+
+
+@pytest.mark.parametrize("corruption", ["tampered", "wrong_shape", "partial_json"])
+def test_corrupt_cache_does_not_mask_provider_failure(session, settings, discovery_setup, corruption):
+    cfg, make = discovery_setup
+    cfg.discovery.cache_hours = 24
+    engine = make(session, settings, Mock(return_value=batch([record()])))
+    query = engine.plan(None)[0]
+    engine.query(query)
+    path = next(engine.cache.glob("*.json"))
+    data = json.loads(path.read_text())
+    data["data"]["records"][0]["name"] = "Tampered"
+    path.write_text(
+        json.dumps(data) if corruption == "tampered" else "[]" if corruption == "wrong_shape" else "{"
+    )
+    engine.reader = Mock(side_effect=unavailable("offline"))
+    with pytest.raises(DiscoveryFault, match="offline"):
+        engine.query(query)
+
+
+def test_crashed_worker_reserves_unknown_transfers(tmp_path, monkeypatch):
+    import website_agent.discovery_engine as module
+
+    monkeypatch.chdir(tmp_path)
+    process = Mock()
+    process.poll.return_value = 1
+    wrapper = Mock()
+    wrapper.__enter__ = Mock(return_value=process)
+    wrapper.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(module.subprocess, "Popen", Mock(return_value=wrapper))
+    cfg = DiscoveryConfig()
+    budget = Budget(cfg)
+    with pytest.raises(DiscoveryFault, match="worker_terminated_without_checkpoint"):
+        module.run_reader(cfg, {"source": "overture"}, budget)
+    assert budget.bytes == cfg.max_download_bytes and budget.requests == cfg.max_requests
+    assert not list(Path("private/discovery-worker").glob("*.json"))
+
+
+@pytest.mark.parametrize("failure_point", ["prefetch", "resumed_batch"])
+def test_failed_prefetch_never_rewinds_resume_cursor(monkeypatch, failure_point):
+    import website_agent.discovery_datasets as module
+
+    monkeypatch.setattr(module, "spatial_objects", lambda *a: [("https://fixture.example/data.parquet", 100)])
+    parquet = Mock()
+    parquet.schema_arrow.names = ["id", "names", "bbox", "addresses", "websites", "taxonomy"]
+    parquet.num_row_groups = 1
+    parquet.metadata.row_group.return_value.total_byte_size = 100
+    monkeypatch.setattr(pq, "ParquetFile", Mock(return_value=parquet))
+    monkeypatch.setattr(module, "overlaps", lambda *a: True)
+    monkeypatch.setattr(
+        module.RangeFile,
+        "prefetch",
+        Mock(side_effect=resource("request_budget") if failure_point == "prefetch" else None),
+    )
+    query = {
+        "endpoint": "aws",
+        "bbox": [-74, 40, -73, 41],
+        "categories": ["hair_salon"],
+        "cursor": {"file": 0, "group": 0, "row": 20},
+    }
+    budget = Budget(DiscoveryConfig())
+    if failure_point == "resumed_batch":
+        parquet.iter_batches.return_value = [pa.RecordBatch.from_pylist([{"id": "fixture"}] * 10)] * 2
+        budget.check = Mock(side_effect=[None, None, resource("request_budget")])
+    with pytest.raises(DiscoveryFault, match="request_budget"):
+        overture_query(DiscoveryConfig(), query, BoundedHTTP(budget))
+
+
+@pytest.mark.parametrize(
+    "change", [{"names": None}, {"confidence": 0}, {"operating_status": "permanently_closed"}]
+)
+def test_nullable_or_nonexistent_places_are_not_candidates(change):
+    from website_agent.discovery_datasets import overture_record
+
+    row = {
+        "id": "fixture",
+        "names": {"primary": "Fixture Salon"},
+        "taxonomy": {"primary": "hair_salon"},
+        "websites": ["https://fixture.example"],
+        "addresses": [{"country": "US", "locality": "New York"}],
+        "bbox": {"xmin": -74, "xmax": -74, "ymin": 40.7, "ymax": 40.7},
+        **change,
+    }
+    assert overture_record(row, "2026-09-23.1") is None
+
+
+def test_rotation_and_plan_rollback_together(session, settings, config):
+    from website_agent.database import LocationQueue
+
+    engine = DiscoveryEngine(session, settings, config, clock=lambda: AT)
+    assert engine.plan("US")
+    assert session.scalar(select(LocationQueue).where(LocationQueue.searches > 0))
+    session.rollback()
+    assert not session.scalar(select(LocationQueue).where(LocationQueue.searches > 0))
+
+
+def test_duplicate_and_suppression_counts_are_separate(session, settings, discovery_setup):
+    cfg, make = discovery_setup
+    cfg.discovery.source_priority = ["overture"]
+    suppress(session, "blocked.example", "history", "offline fixture")
+    result = make(
+        session,
+        settings,
+        lambda *a: batch([record(), record(), record(provider_id="blocked", url="https://blocked.example")]),
+    ).run()
+    assert result["businesses_inserted"] == 1
+    assert result["already_known_duplicates"] >= 1
+    assert result["rejection_reasons"]["suppressed_domain_or_mailbox"] >= 1
+
+
+def test_configured_taxonomy_matches_reviewed_published_snapshot():
+    import csv
+
+    import yaml
+
+    snapshot = Path("tests/fixtures/overture-taxonomy-reviewed.csv")
+    rows = list(csv.DictReader(snapshot.open(encoding="utf-8")))
+    published = {row["primary"] for row in rows}
+    taxonomy = yaml.safe_load(Path("config/discovery-taxonomy.yml").read_text())
+    assert "/taxonomy/2026-09-23.0/taxonomy.csv" in taxonomy["review_reference"]
+    assert len(taxonomy["taxonomy_sha256"]) == 64
+    for niche in taxonomy["niches"].values():
+        assert niche["primary"]["overture"]
+        for level in niche.values():
+            assert set(level["overture"]) <= published
+    assert taxonomy["niches"]["barbershops"]["primary"]["overture"] == ["barber"]
+    assert taxonomy["niches"]["dentists"]["primary"]["overture"] == ["dental_clinic"]
+
+
+def test_unrelated_or_inconsistent_hierarchy_cannot_match():
+    from website_agent.discovery_support import category_matches
+
+    assert not category_matches("museum", ["hair_salon"], ["hair_salon"])
+    assert not category_matches("museum", ["arts", "museum"], ["hair_salon"])

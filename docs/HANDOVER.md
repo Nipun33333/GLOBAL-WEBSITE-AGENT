@@ -1,6 +1,8 @@
-# Implementation handover — 20 October 2026
+# Implementation handover — updated 21 October 2026
 
 Implemented and committed in **Nipun33333/GLOBAL-WEBSITE-AGENT** only. The Base44 system and other repositories were not accessed or modified. No live business emails were sent, no real deployment URLs were invented, and no paid resources or billing were activated.
+
+The current feature-branch follow-up is documented in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md): spatial STAC selection, real bounded Parquet reads, recovery fixes and current validation. The historical results below remain historical. PR #6 remains unmerged.
 
 ## Delivery status
 
@@ -75,7 +77,7 @@ Use one existing dedicated Netlify project. Each prospect version is a real draf
 
 - [ ] Dedicated production PostgreSQL configured, migrated, restricted and backed up; direct/session-mode connection used.
 - [ ] Gemini key, selected model access and current prices verified.
-- [ ] Discovery provider key and explicit storage/actual-outreach-use authorization supplied.
+- [ ] Overture source/license notices reviewed and real discovery-only persistence verified; optional OSM source separately configured and authorized. No search key is required in open_data mode.
 - [ ] Dedicated Netlify project/token configured and real HTTPS preview smoke test passed.
 - [ ] Gmail OAuth refresh and sender identity verified; real postal address/reply-to configured.
 - [ ] Existing Base44 contact/thread/opt-out exports imported and validated against Gmail.
@@ -91,7 +93,7 @@ Full operational instructions: [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md). Fu
 
 Static website scoring is not Lighthouse or an exhaustive accessibility/visual audit. Facts remain source quotations and safe templates constrain generated code; arbitrary model JavaScript is intentionally excluded. Email catalog languages are English, Hindi, Arabic, German, French and Japanese; other languages fall back to English catalog email text. There is no admin web dashboard. Owner notifications are stored in the database and Actions summaries, not sent as separate emails. Hosting billing/retention remains account-specific. External ambiguous actions can require operator reconciliation. An independent Base44 system cannot be locked by this repository: documented audience separation remains necessary.
 
-## Complete tracked project structure
+## Original tracked project structure (before discovery follow-up)
 
 ```text
 GLOBAL-WEBSITE-AGENT/

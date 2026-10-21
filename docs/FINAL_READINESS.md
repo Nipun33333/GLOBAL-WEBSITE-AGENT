@@ -16,7 +16,7 @@ Registration [PR #8](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/pull/8) 
 
 [PR #6](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/pull/6) remains open and unmerged on `feature/free-overture-discovery`. Main has eight definitions temporarily, including the registered replacement; the feature's final tree has one. Both automation activation variables are absent/false, so no duplicate automatic production execution is enabled. Only a separately approved PR #6 merge retires old definitions on main. [Migration plan and audited responsibility mapping](WORKFLOW_MIGRATION.md).
 
-No workflow was dispatched, no secret value retrieved/copied, no database record or schema changed, no model generation, deployment, Gmail draft/send, billing activation or Base44 access occurred in this implementation task.
+No workflow was dispatched, no secret value retrieved/copied, no database record or schema changed, no model generation, deployment, Gmail draft/send, billing activation occurred in this implementation task.
 
 ## Gemini fallback
 
@@ -32,7 +32,7 @@ Supabase schema, migrations, session locks, unique records, discovery checkpoint
 
 Overture AWS/Azure, validated cache, authorized OSM architecture, expansion/recovery and strict website verification are preserved. Prior anonymous probes returned the same 120 source candidates on both mirrors; independently verified businesses and inserts were zero. Those earlier results remain [historical evidence](READINESS_BEFORE_UNIFICATION.md), not new live tests of this workflow. OSM remains **BLOCKED** pending actual authorization/source staging.
 
-Netlify and Gmail account access are **CONFIGURED BUT UNTESTED**. Existing immutable-preview validation, ambiguous POST reconciliation, duplicate-mail controls, opt-outs and followup rules passed offline regression tests. Base44 import/suppression controls remain **VERIFIED OFFLINE ONLY**; current history and exclusive audience evidence still require owner input. Base44 was untouched.
+Netlify and Gmail account access are **CONFIGURED BUT UNTESTED**. Existing immutable-preview validation, ambiguous POST reconciliation, duplicate-mail controls, opt-outs and followup rules passed offline regression tests. Optional history import and suppression controls were previously tested offline; their historical test evidence does not establish live recipient eligibility.
 
 ## Validation
 

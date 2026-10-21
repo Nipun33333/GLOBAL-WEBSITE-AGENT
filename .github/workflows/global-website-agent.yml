@@ -34,9 +34,9 @@ jobs:
       AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED || 'false' }}
       UNIFIED_WORKFLOW_ENABLED: ${{ vars.UNIFIED_WORKFLOW_ENABLED || 'false' }}
       SCHEDULED_MODES: ${{ vars.SCHEDULED_MODES }}
-      ALLOW_GENERATION: ${{ vars.ALLOW_GENERATION || 'false' }}
-      ALLOW_DEPLOYMENT: ${{ vars.ALLOW_DEPLOYMENT || 'false' }}
-      ALLOW_DRAFTS: ${{ vars.ALLOW_DRAFTS || 'false' }}
+      ALLOW_GENERATION: ${{ vars.ALLOW_GENERATION || (github.event_name == 'workflow_dispatch' && 'true' || 'false') }}
+      ALLOW_DEPLOYMENT: ${{ vars.ALLOW_DEPLOYMENT || (github.event_name == 'workflow_dispatch' && 'true' || 'false') }}
+      ALLOW_DRAFTS: ${{ vars.ALLOW_DRAFTS || (github.event_name == 'workflow_dispatch' && 'true' || 'false') }}
       ALLOW_SENDING: ${{ vars.ALLOW_SENDING || 'false' }}
       ENABLE_SENDING: ${{ vars.ENABLE_SENDING || 'false' }}
       ENABLE_ROUTINE_REPLIES: 'false'

@@ -410,6 +410,26 @@ def execute(selected):
 
     except Exception:
         counts = {"status": "aggregate_read_unavailable"}
+    # A documented, persisted future retry is NOT the same as an execution crash.
+    # Keep the original CLI exit_code visible, but don't make GitHub's job red for
+    # an intentional, resumable discovery cooldown. Missing persistence evidence
+    # or stage failures must still produce a nonzero workflow exit code.
+    recovered = run_diagnostics.get("discovery", {})
+    normal_defer = (
+        mode == "daily"
+        and code == 2
+        and run_diagnostics.get("persisted_status") in {
+            "deferred_resource_limit", "deferred_provider_unavailable"
+        }
+        and recovered.get("status") in {
+            "deferred_resource_limit", "deferred_provider_unavailable"
+        }
+        and recovered.get("next_at")
+        and counts.get("failed_stages") == 0
+    )
+    if normal_defer:
+        status = "deferred_retry_scheduled"
+        print("::notice title=Discovery deferred::Safe retry is persisted; see sanitized run_diagnostics.")
     live.publish(
         {
             "status": status,
@@ -422,7 +442,7 @@ def execute(selected):
             "aggregate_counts": counts,
         }
     )
-    return code
+    return 0 if normal_defer else code
 
 
 def main():

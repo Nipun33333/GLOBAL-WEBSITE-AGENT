@@ -1,0 +1,97 @@
+name: Manual live verification
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Read-only diagnostics first; discover writes to the existing database'
+        type: choice
+        options: [diagnostics, discover]
+        default: diagnostics
+      reviewed_commit:
+        description: 'Full reviewed SHA at the tip of feature/free-overture-discovery'
+        type: string
+        required: true
+      free_limits_reviewed:
+        description: 'I checked remaining Actions/storage and provider free quotas; no paid overage is authorized'
+        type: boolean
+        default: false
+      database_reviewed:
+        description: 'Existing DATABASE_URL is this agent database, uses direct/session pooling, and is within free limits'
+        type: boolean
+        default: false
+      write_approval:
+        description: 'Discover only: after inspecting diagnostics, type APPROVE_US_DISCOVERY_WRITES'
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: >-
+      github.repository == 'Nipun33333/GLOBAL-WEBSITE-AGENT' &&
+      github.ref == 'refs/heads/feature/free-overture-discovery' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1 && inputs.free_limits_reviewed && inputs.database_reviewed &&
+      (inputs.mode == 'diagnostics' || (inputs.mode == 'discover' && inputs.write_approval == 'APPROVE_US_DISCOVERY_WRITES'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: agent-runtime
+    concurrency:
+      group: global-website-agent-runtime
+      cancel-in-progress: false
+    env:
+      AUTOMATION_ENABLED: 'false'
+      ENABLE_SENDING: 'false'
+      ENABLE_ROUTINE_REPLIES: 'false'
+      VERIFY_MODE: ${{ inputs.mode }}
+      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
+      FREE_LIMITS_REVIEWED: ${{ inputs.free_limits_reviewed }}
+      DATABASE_REVIEWED: ${{ inputs.database_reviewed }}
+      WRITE_APPROVAL: ${{ inputs.write_approval }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: feature/free-overture-discovery
+          persist-credentials: false
+      - name: Check reviewed revision before loading credentials
+        run: |
+          python - <<'PY'
+          import os, re, subprocess
+          expected = os.environ['REVIEWED_COMMIT']
+          actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          if not re.fullmatch(r'[0-9a-f]{40}', expected) or actual != expected:
+              raise SystemExit('Reviewed revision does not match feature branch tip; no live checks performed.')
+          PY
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - run: python -m pip install uv==0.11.16
+      - run: uv sync --frozen
+      - name: Read-only diagnostics and separately approved discovery
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+          GEMINI_ADVANCED_MODEL: ${{ vars.GEMINI_ADVANCED_MODEL || 'gemini-4-argon' }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SENDER_NAME: ${{ secrets.SENDER_NAME }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          REPLY_TO: ${{ secrets.REPLY_TO }}
+          SENDER_POSTAL_ADDRESS: ${{ secrets.SENDER_POSTAL_ADDRESS }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+        run: uv run python -m website_agent.live_verification
+      - name: Retain only allowlisted diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: live-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/live-verification.json
+            artifacts/live-verification.md
+          retention-days: 1
+          if-no-files-found: ignore

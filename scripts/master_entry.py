@@ -336,7 +336,15 @@ def execute(selected):
                 )
             ).first()
             if exact_run:
-                run_diagnostics["persisted_status"] = exact_run.status
+                allowed = {
+                    "completed", "completed_with_results", "completed_no_qualified_results",
+                    "deferred_resource_limit", "deferred_provider_unavailable",
+                    "blocked_permission_or_license", "failed_requires_operator",
+                    "failed", "partial",
+                }
+                run_diagnostics["persisted_status"] = (
+                    exact_run.status if exact_run.status in allowed else "unrecognized_status"
+                )
                 outcome = connection.execute(
                     select(Event.details)
                     .where(

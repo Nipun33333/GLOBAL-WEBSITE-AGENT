@@ -120,6 +120,7 @@ def test_quota_pause_survives_new_process(session, settings, config):
 
 def test_daily_schedule_checkpoint_and_catchup(session, settings, config, monkeypatch):
     config.schedule_timezone, config.schedule_hour = "Asia/Kolkata", 8
+    config.schedule_hours = []  # Legacy single daily slot remains supported.
     pipe = Pipeline(session, settings, config)
     monkeypatch.setattr("website_agent.pipeline.now", lambda: datetime(2026, 10, 20, 2, tzinfo=UTC))
     assert not pipe.scheduled_due()
@@ -129,6 +130,27 @@ def test_daily_schedule_checkpoint_and_catchup(session, settings, config, monkey
     assert not pipe.scheduled_due()
     monkeypatch.setattr("website_agent.pipeline.now", lambda: datetime(2026, 10, 22, 8, tzinfo=UTC))
     assert pipe.scheduled_due()
+
+
+def test_two_independent_ist_schedule_slots(session, settings, config, monkeypatch):
+    config.schedule_timezone, config.schedule_hour = "Asia/Kolkata", 15
+    config.schedule_hours = [15, 21]
+    pipe = Pipeline(session, settings, config)
+
+    monkeypatch.setattr("website_agent.pipeline.now", lambda: datetime(2026, 10, 20, 9, tzinfo=UTC))
+    assert not pipe.scheduled_due()  # 14:30 IST
+
+    monkeypatch.setattr("website_agent.pipeline.now", lambda: datetime(2026, 10, 20, 10, tzinfo=UTC))
+    assert pipe.schedule_slot() == "2026-10-20@15"
+    assert pipe.scheduled_due()
+    set_config(session, "daily_checkpoint", {"date": "2026-10-20", "slot": "2026-10-20@15"})
+    assert not pipe.scheduled_due()
+
+    monkeypatch.setattr("website_agent.pipeline.now", lambda: datetime(2026, 10, 20, 16, tzinfo=UTC))
+    assert pipe.schedule_slot() == "2026-10-20@21"
+    assert pipe.scheduled_due()
+    set_config(session, "daily_checkpoint", {"date": "2026-10-20", "slot": "2026-10-20@21"})
+    assert not pipe.scheduled_due()
 
 
 def test_preview_cap_and_ambiguous_deployment(session, settings, config, prospect, site, fakes):

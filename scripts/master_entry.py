@@ -169,6 +169,18 @@ def safe_discovery_details(value):
     return out
 
 
+def capability_readiness(selected, config):
+    """Expose required one-time production gates without secrets or recipient data."""
+    capabilities = {
+        name: ("enabled" if selected[name] else "disabled")
+        for name in ("generation", "deployment", "drafts", "sending")
+    }
+    capabilities["gemini_account_usage_review"] = (
+        "configured" if config.gemini.usage_authorizations else "required"
+    )
+    return capabilities
+
+
 def eligible_deferred_success(code, mode, counts, run_diagnostics):
     """Only an independently persisted, stage-error-free retry can end cleanly."""
     discovery = run_diagnostics.get("discovery", {})
@@ -442,6 +454,7 @@ def execute(selected):
             "exit_code": code,
             "revision": selected["revision"],
             "sending_enabled": selected["sending"],
+            "capability_readiness": capability_readiness(selected, config),
             "schema_bootstrap": bootstrap_status or "not_needed",
             "run_diagnostics": run_diagnostics,
             "aggregate_counts": counts,

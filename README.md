@@ -2,7 +2,7 @@
 
 A Python application for global business discovery, evidence-based website qualification, safe website concept generation, verified HTTPS previews, and controlled Gmail outreach. PostgreSQL is the durable source of truth; GitHub Actions runs it while your laptop is off.
 
-**Deployment status: public AWS/Azure discovery reads and offline safeguards verified; credentialed integrations await owner-approved diagnostics.** The existing 12 GitHub Secrets are reused without local copying. Unified workflow registration PR #8 is merged; feature PR #6 remains open. The feature consolidates seven definitions into one control panel; main retains legacy definitions until the implementation is separately merged. No business emails have been sent, no paid services enabled, and the existing Base44 system has not been accessed or changed.
+**Deployment status: the unified Python implementation is merged into main and one GitHub Actions workflow remains.** One-click manual dispatch and two India-time slots are configured; actual account/database/preview/email verification is still outstanding. Existing GitHub Secrets remain in GitHub without local copying. No confirmed live prospect emails or Netlify deployments are claimed. Base44 was not accessed.
 
 ## Start here
 
@@ -20,11 +20,11 @@ uv run website-agent doctor
 # Production changes require separate owner approval; use the reviewed Actions diagnostics first.
 ```
 
-`doctor` lists missing setting names without displaying secret values. `doctor --live` reads external account metadata but persists model-check state in the database. For strictly read-only database diagnostics using existing GitHub Secrets, follow [manual live verification](docs/MANUAL_LIVE_VERIFICATION.md). `live-smoke` performs explicit generation, deployment, browser checks, and a Gmail draft addressed to the owner; it never sends email. Mock tests never call live commercial APIs.
+`doctor` lists missing setting names without displaying secret values. `doctor --live` reads external account metadata but persists model-check state in the database. The production workflow now exposes one-click daily operation, not the former diagnostics form. Read-only diagnostics remain available through the documented CLI and authorized account access; review [one-click prerequisites](docs/UNIFIED_WORKFLOW.md) before running. `live-smoke` performs explicit generation, deployment, browser checks, and a Gmail draft addressed to the owner; it never sends email. Mock tests never call live commercial APIs.
 
 ## Unified operations and Gemini fallback
 
-Use **Actions → Global Website Agent → Run workflow** after reviewing the current feature SHA. Modes: diagnostics, discover, daily, replies, followups, report, reconcile and live-smoke. Schedules retain the four original UTC cadences and remain disabled. Read [control-panel approvals](docs/UNIFIED_WORKFLOW.md) and [migration order](docs/WORKFLOW_MIGRATION.md). No workflow automatically migrates the database.
+Use **Actions → Global Website Agent → Run workflow → Run workflow** on main. There are **no input boxes**: owner dispatch automatically chooses an eligible configured country and starts one daily pipeline invocation. Twice-daily UTC schedules are `30 9 * * *` and `30 15 * * *` (3 PM / 9 PM IST). Automatic schedules remain gated by one-time owner-reviewed repository variables and are not yet confirmed active. See the [one-click control guide](docs/UNIFIED_WORKFLOW.md). No workflow automatically migrates the database.
 
 [Gemini fallback](docs/GEMINI_FALLBACK.md) selects only reviewed exact models, checks account metadata/token limits, honors persistent quota pauses and retains provenance. Generation, deployment and draft creation now default disabled independently of sending. Account usage authorizations/prices remain empty; no free eligibility is invented. The default candidate order is 3.8 Flash → 3.6 Flash → 3.5 Flash-Lite → eligible 2.5 Flash/Flash-Lite; 3.7 aliases 3.8 and is not an independent fallback.
 
@@ -53,7 +53,7 @@ The application includes all fourteen requested persistent tables, immutable mig
 
 Configuration ships with eleven countries and twelve niches. Countries, cities, languages, time zones, search strings, daily budgets, and eligibility policies are configured in YAML. New countries require a supported holiday calendar and a reviewed sending policy; otherwise sends remain blocked.
 
-All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. Tests and development tools remain available locally; automated test, lint and dependency-audit workflows have been removed.
+All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. Tests and development tools remain available locally; no separate testing workflow exists.
 
 ## Default global limits
 

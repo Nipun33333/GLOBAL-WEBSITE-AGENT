@@ -9,7 +9,7 @@ This is an implemented application, not a claim of verified production operation
 
 - The 12 required GitHub Secret names are present, but live diagnostics have not been dispatched. Quota/destination confirmation and explicit owner approval remain outstanding; no local credential copy is required. Credentialed discovery/persistence, model access/generation, deployment, OAuth refresh and Gmail drafts cannot be reported as passed. Real public Overture range queries have now returned source candidates; see [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md). Candidates have not been verified or admitted.
 - No country policy has been legally verified for this sender/audience. Every shipped country is draft-only. A reviewer must determine applicable law, contact types, consent or other basis, identification/unsubscribe requirements, retention and evidence validity. Configuration templates are not legal advice or blanket permission.
-- Existing Base44 history and opt-outs must be exported by the owner, imported, matched against Gmail, and validated. An exclusive audience assignment is essential while Base44 continues running. This application cannot prevent Base44 from racing it without cooperation from the existing system/owner.
+- The agent is standalone. It protects existing suppression records and checks Gmail Sent/Inbox live before each send. Optional owner-supplied contact exports may add suppressions; separate-platform audience attestations are not required.
 - Provider storage and outreach-use rights, Gemini prices/model access, Gmail consent publishing, hosting retention and service quotas need account-specific checks. Free plans may be insufficient. No additional resources are bought automatically.
 
 ## Intentional bounds
@@ -22,7 +22,7 @@ This is an implemented application, not a claim of verified production operation
 - Two systems without shared campaign ownership cannot provide absolute duplicate prevention. Gmail search is eventually consistent. Ambiguous send/draft/deployment results can require operator reconciliation, intentionally sacrificing liveness to avoid duplicates.
 - Default countries/cities are examples, not exhaustive geographic coverage. Holiday coverage comes from the pinned library and configured subdivision; local exceptions/contact windows require policy review. The scheduler waits for underserved countries, so a holiday/weekend can defer a daily search.
 - Source/AI cache and full preview files are stored in PostgreSQL. Monitor storage; add a reviewed retention policy before high-volume operation. Database size is checked against the configured cap. Hosting account billing/bandwidth counters are not normalized into a universal quota API; provider 429/errors and local deployment limits are enforced, and account dashboards remain authoritative.
-- No web admin dashboard is included: configuration, CLI commands, GitHub Actions and PostgreSQL are the operational interface. This repository implements an automation service rather than reproducing Base44's visual interface.
+- No web admin dashboard is included: configuration, CLI commands, GitHub Actions and PostgreSQL are the operational interface. This repository implements an automation service rather than a visual admin dashboard.
 
 ## Before enabling production
 
@@ -33,8 +33,7 @@ This is an implemented application, not a claim of verified production operation
 - [ ] One dedicated hosting project configured; actual HTTPS/mobile smoke verification passed.
 - [ ] Gmail sender/reply-to identity, OAuth refresh, draft creation and sent verification reviewed.
 - [ ] Physical address and owner details are accurate.
-- [ ] Base44 exports and Gmail history imported completely; suppression list validated.
-- [ ] Exclusive audience assignment documented; no overlapping Base44 campaign.
+- [ ] Gmail Sent/Inbox access tested and prior-contact checks verified; existing opt-out suppressions retained.
 - [ ] Country policies and per-business legal/contact evidence reviewed and current.
 - [ ] Draft contents, unsubscribe handling, reply polling and followup timing verified.
 - [ ] Actions secrets/variables configured; scheduled and manual draft-only runs pass.

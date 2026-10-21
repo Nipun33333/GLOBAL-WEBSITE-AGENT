@@ -1,6 +1,6 @@
-# Global Website Agent
+# UK Website Agent
 
-A Python application for global business discovery, evidence-based website qualification, safe website concept generation, verified HTTPS previews, and controlled Gmail outreach. PostgreSQL is the durable source of truth; GitHub Actions runs it while your laptop is off.
+A Python application for United Kingdom business discovery, evidence-based website qualification, safe website concept generation, verified HTTPS previews, and controlled Gmail outreach. PostgreSQL is the durable source of truth; GitHub Actions runs it while your laptop is off.
 
 **Deployment status: the unified Python implementation is merged into main and one GitHub Actions workflow remains.** One-click manual dispatch and two India-time slots are configured; actual account/database/preview/email verification is still outstanding. Existing GitHub Secrets remain in GitHub without local copying. No confirmed live prospect emails or Netlify deployments are claimed.
 
@@ -24,7 +24,7 @@ uv run website-agent doctor
 
 ## Unified operations and Gemini fallback
 
-Use **Actions → Global Website Agent → Run workflow → Run workflow** on main. There are **no input boxes**: owner dispatch automatically chooses an eligible configured country and starts one daily pipeline invocation. Twice-daily UTC schedules are `30 9 * * *` and `30 15 * * *` (3 PM / 9 PM IST). Automatic schedules are now enabled in code for both India-time slots, subject to GitHub Actions' scheduling delays and available provider capacity. See the [one-click control guide](docs/UNIFIED_WORKFLOW.md). No workflow automatically migrates the database.
+Use **Actions → UK Website Agent → Run workflow → Run workflow** on main. There are **no input boxes**: owner dispatch searches exclusively in the United Kingdom (GB) and starts one daily pipeline invocation. Twice-daily UTC schedules are `30 9 * * *` and `30 15 * * *` (3 PM / 9 PM IST). Automatic schedules are now enabled in code for both India-time slots, subject to GitHub Actions' scheduling delays and available provider capacity. See the [one-click control guide](docs/UNIFIED_WORKFLOW.md). No workflow automatically migrates the database.
 
 [Gemini fallback](docs/GEMINI_FALLBACK.md) selects owner-reviewed Free-Tier models 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite with bounded cooldowns and token checks. Quota review expires November 21, 2026; at most 12 AI requests/day and paid fallback remains disabled. **Both owner manual runs and the two daily schedules now enable Gemini generation, Netlify preview, Gmail draft preparation and the technical Gmail initial-sending switch.** At most one new email can be sent per invocation; automatic followups and replies stay disabled. **Recipient sends remain blocked** while all country policies are disabled or country-policy and per-contact eligibility evidence is missing; existing suppression and verification requirements are never bypassed. The green Actions result alone does not prove any website was deployed or a message sent.
 
@@ -51,7 +51,7 @@ flowchart LR
 
 The application includes all fourteen requested persistent tables, immutable migration SQL, global capacity controls, database locks, deterministic email identifiers, reply classification, imported history/suppressions, resumable hosting steps, bounded AI requests, and job-summary reporting.
 
-Configuration ships with eleven countries and twelve niches. Countries, cities, languages, time zones, search strings, daily budgets, and eligibility policies are configured in YAML. New countries require a supported holiday calendar and a reviewed sending policy; otherwise sends remain blocked.
+Production configuration ships with **10 UK cities** (England, Scotland, Wales and Northern Ireland), twelve business niches and **one country code: GB**. The old worldwide recovery queue and older non-UK leads remain in Supabase but are never selected for new UK-only audit, demo, drafts or sending. UK commercial-email rules still require independent review before recipient sending.
 
 All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. Tests and development tools remain available locally; no separate testing workflow exists.
 

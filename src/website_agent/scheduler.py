@@ -48,8 +48,6 @@ def rotate(session, config, country=None, at=None, exclude_cities=None, *, commi
     candidates = []
     rows = list(session.scalars(select(LocationQueue)))
     counts = {c: sum(r.searches for r in rows if r.country == c) for c in {r.country for r in rows}}
-    configured_countries = {loc.country for loc in config.locations}
-    minimum = min((counts[c] for c in configured_countries), default=0)
     for row in rows:
         if exclude_cities and (row.country, row.city) in exclude_cities:
             continue
@@ -58,10 +56,8 @@ def rotate(session, config, country=None, at=None, exclude_cities=None, *, commi
         )
         if not location or row.niche not in config.niches or (country and row.country != country):
             continue
-        # Wait for an underserved country's local window instead of repeatedly selecting
-        # countries that happen to be awake at the UTC heartbeat time.
-        if not country and counts[row.country] > minimum:
-            continue
+        # Fairness is applied among locations actually eligible right now.
+        # A closed timezone must not block all other countries from progressing.
         if not contact_time(
             at, location.country, location.timezone, config.research_hours, location.subdivision
         ):

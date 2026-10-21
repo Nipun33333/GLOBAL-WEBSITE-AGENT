@@ -11,7 +11,7 @@ The public dataset measurements below are the earlier completed probes; no crede
 - Limits unchanged: 30 accepted/invocation, 120 candidate checks, 160 request attempts, 64,000,000 payload bytes, 128,000,000 managed cache/worker bytes, 512 MiB worker RSS, 300 seconds, 8 dataset chunks and 8 files/chunk.
 - Local sending/routine flags are false. Repository variables and the three automation/sending gates in `agent-runtime` had no overrides; the existing workflow defaults keep them disabled. No secrets were retrieved or changed. No workflow was dispatched. All 11 country policies remain disabled.
 - All six production YAML files match `origin/main` byte-for-byte: `_agent-runtime.yml`, `global-daily-pipeline.yml`, `gmail-reply-checker.yml`, `followup-processor.yml`, `weekly-report.yml`, `manual-production-run.yml`. Schedules and manual inputs are unchanged. `tests.yml` remains absent.
-- No Base44 access, other repository access, prospect emails, Gmail drafts, model generation, deployments, billing activation, production-data changes or migrations were performed.
+- No other repository access, prospect emails, Gmail drafts, model generation, deployments, billing activation, production-data changes or migrations were performed.
 
 ## Defects fixed
 
@@ -74,7 +74,7 @@ Azure was independently checked with a single 8-byte footer request to the corre
 | Gemini | AWAITING OWNER RUN | GitHub key name confirmed; configured model IDs unchanged. Metadata checks prepared, no call made; generation and account free quota remain unverified |
 | Netlify | AWAITING OWNER RUN | GitHub token/site ID names confirmed. Existing-site GET prepared; no lookup or deployment made, quota unknown |
 | Gmail | AWAITING OWNER RUN | GitHub OAuth/sender secret names confirmed. Refresh/profile/scope checks prepared; no credentialed check, draft or send made |
-| Base44 overlap controls | VERIFIED OFFLINE ONLY | Imported suppressions and exclusive-assignment gates tested; actual history/partition unvalidated, Base44 untouched |
+| Historical suppressions | VERIFIED OFFLINE ONLY | Stored opt-out and prior-contact protections tested using fixtures; real Gmail and legal eligibility require account checks |
 | Country legal compliance | BLOCKED | All policies disabled; sender/audience-specific review and evidence still required |
 | Resource budgets | VERIFIED LIVE | Final AWS probe within unchanged bounds; enforcement/crash cases tested offline; no hard OS memory/time guarantee |
 | GitHub Actions definitions | VERIFIED OFFLINE ONLY | Six production workflows preserved; new manual-only verification workflow added with owner/revision/write approval gates. Default-branch registration completed via PR #7; owner dispatch pending |
@@ -106,7 +106,7 @@ Ruff and formatting passed. Locked runtime dependency audit: **no known vulnerab
 4. Only after explicit owner approval via a separate discover dispatch, execute isolated US discovery during its configured research window. Never substitute `daily`. Inspect aggregate inserts, verified websites, resource counters and status. Deferred/timeout outcomes require checkpoint inspection before another fresh approval; do not erase history/suppressions or reset ambiguous operations.
 5. OSM remains blocked pending a real bounded XML extract and runner staging, reviewed ODbL obligations, or an actually authorized private/contracted endpoint. The investigated 474 MB Geofabrik New York PBF exceeds current limits and is not directly supported by the XML reader. See the launch guide's source-linked investigation; no provider permission or setting was changed.
 6. The new diagnostics use read-only database transactions. Existing `doctor --live` persists model-check state and is not used. No generation, deployment, draft or mail send is included in this workflow. Account-specific free-tier and billing controls must be verified by the owner before dispatch.
-7. Gmail external OAuth Testing normally expires refresh tokens after seven days for these Gmail scopes. Review publishing status and applicable sensitive/restricted-scope verification, then reauthorize securely as required. Publishing does not guarantee permanent tokens; revocation/account policy can still require owner recovery. No prospect sending or routine replies may be enabled without separate authorization and validated Base44 history/audience separation and legal-basis evidence.
+7. Gmail external OAuth Testing normally expires refresh tokens after seven days for these Gmail scopes. Review publishing status and applicable sensitive/restricted-scope verification, then reauthorize securely as required. Publishing does not guarantee permanent tokens; revocation/account policy can still require owner recovery. No prospect sending or routine replies may be enabled without sender authorization, Gmail prior-contact checks and documented recipient legal-basis evidence.
 
 The default Gemini monetary cap is an existing upper bound, not proof of free usage. Hosting, Supabase storage and Actions allowances are account-specific; this task activated no billing and bought nothing. Dataset budgets are per invocation, not a promise of result count or unlimited daily free infrastructure. The operational verdict remains blocked until owner review and authorized live verification are completed.
 

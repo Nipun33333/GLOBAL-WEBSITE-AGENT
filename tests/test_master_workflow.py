@@ -204,6 +204,26 @@ def test_runtime_diagnostics_forces_flags_false(monkeypatch):
     )
 
 
+def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
+    from website_agent import settings as settings_module
+
+    monkeypatch.setattr(settings_module, "Settings", lambda **_: settings)
+    from website_agent import live_verification as live
+
+    secret = "unprintable-fixture-password"
+    monkeypatch.setattr(live, "database_check", Mock(side_effect=RuntimeError(secret)))
+    published = Mock()
+    monkeypatch.setattr(live, "publish", published)
+    selected = master.plan(
+        env(ONE_CLICK_MODE="true", GITHUB_REF="refs/heads/main"), SHA
+    )
+    assert master.execute(selected) == 2
+    result = published.call_args.args[0]
+    assert result["status"] == "blocked_database_preflight"
+    assert result["database"] == {"status": "failed_or_unavailable"}
+    assert secret not in json.dumps(result)
+
+
 def test_runtime_db_block_prevents_cli(monkeypatch, settings, config):
     from website_agent import settings as settings_module
 

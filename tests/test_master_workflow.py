@@ -381,7 +381,7 @@ def test_empty_schema_bootstrap_initializes_once_and_uses_verified_tls(
     chosen_url = engine_for.call_args.args[0]
     assert chosen_url.startswith("postgresql+psycopg://")
     assert "sslmode=verify-full" in chosen_url
-    assert "/trusted/project-ca.pem" in chosen_url
+    assert "sslrootcert=%2Ftrusted%2Fproject-ca.pem" in chosen_url
     migration.assert_called_once_with(engine)
     engine.dispose.assert_called_once()
 

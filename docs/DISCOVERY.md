@@ -47,7 +47,7 @@ Large row groups, incomplete or oversized STAC indexes, exhausted bytes/disk, un
 
 ## Persistent recovery and truthful outcomes
 
-The existing database `configuration` table stores `discovery_task:<country-or-worldwide>` plans, next retry times, pending source records, candidate index, scan cursors and provider circuits. Candidate admission and its index advance commit together. City selection and the resulting search plan commit together. Hitting the invocation target preserves unconsumed pending records. Reader version 2 invalidates old global-file cursors/caches; existing prospects, sources and suppressions remain intact. A restart replays the last committed work; domain/source uniqueness prevents duplicate admissions. Partial dataset transfers do not enter the cache. Provider health is shared across Overture mirrors; regional extract failures are scoped by city. Unexpired permitted caches are revalidated for integrity before reuse, and candidate websites are reverified.
+The existing database `configuration` table stores UK-only `discovery_task:GB` plans, next retry times, pending source records, candidate index, scan cursors and provider circuits. Candidate admission and its index advance commit together. City selection and the resulting search plan commit together. Hitting the invocation target preserves unconsumed pending records. Reader version 2 invalidates old global-file cursors/caches; existing prospects, sources and suppressions remain intact. A restart replays the last committed work; domain/source uniqueness prevents duplicate admissions. Partial dataset transfers do not enter the cache. Provider health is shared across Overture mirrors; regional extract failures are scoped by city. Unexpired permitted caches are revalidated for integrity before reuse, and candidate websites are reverified.
 
 The six outcomes are:
 
@@ -62,7 +62,7 @@ Reports retain partial accepted counts even when the outcome is deferred. They s
 
 Provider errors are isolated from other stages. A database outage cannot safely be hidden: the operation stops without acknowledging an uncommitted candidate. If PostgreSQL cannot persist any event, only the sanitized CLI failure and previous committed checkpoint remain. Restore connectivity; rerun the same country scope. The shared advisory lock must be reacquired by a new invocation after connection/ownership loss.
 
-Unknown schemas and repeated failures need an operator to correct the source configuration/schema support. Editing the discovery configuration or reviewed taxonomy creates a fresh task signature. Preserve suppressions, imported history and outreach state. Do not clear those tables to retry discovery. Cached data on an ephemeral Actions runner may disappear; PostgreSQL pending records/cursors survive. Automation still requires the existing `AUTOMATION_ENABLED` gate; this implementation does not turn it on.
+Unknown schemas and repeated failures need an operator to correct the source configuration/schema support. Editing the discovery configuration or reviewed taxonomy creates a fresh task signature. Preserve suppressions, imported history and outreach state. Do not clear those tables to retry discovery. Cached data on an ephemeral Actions runner may disappear; PostgreSQL pending records/cursors survive. UK-only automation has been enabled separately in the current single workflow; this discovery design is bounded by existing quotas.
 
 ## Configure optional OSM access
 
@@ -72,9 +72,9 @@ Example extract entry (replace every placeholder with real evidence):
 
 ```yaml
 osm_extracts:
-  - country: US
-    city: New York
-    path: private/regions/new-york.osm
+  - country: GB
+    city: London
+    path: private/regions/london.osm
     sha256: '<verified full-file SHA-256>'
     release: '<actual extract date/version>'
     commercial_use_authorized: true
@@ -92,20 +92,20 @@ Primary references: [Overture cloud catalog and official endpoints](https://docs
 1. Leave `AUTOMATION_ENABLED`, `ENABLE_SENDING` and `ENABLE_ROUTINE_REPLIES` false/unset. Keep country sending policies disabled. No credential changes are required beyond an existing authorized database connection.
 2. Install the committed lockfile: `uv sync --frozen --extra dev`. Apply migrations only after read-only diagnosis, a verified backup and separate owner approval for database changes. No new schema migration is introduced by this change.
 3. Review one configured city envelope, category mapping, source license provenance and small budgets. Previously imported suppression records, if any, are respected; no external-platform export is required.
-4. In that city's eligible local research window, run `uv run website-agent discover --country US` (or another configured ISO country). This invokes only discovery/database/report code. Do **not** substitute `daily` or `live-smoke`, which involve other integrations.
+4. In a UK city's eligible local research window, run `uv run website-agent discover --country GB`. This invokes only discovery/database/report code. Do **not** substitute `daily` or `live-smoke`, which involve other integrations.
 5. Inspect `artifacts/report.md`, `workflow_runs`, `run_events`, `business_sources.evidence` and `configuration` task/circuit records. Fewer results, an empty result, or a documented deferral are legitimate. Do not weaken verification to achieve 30.
-6. Rerun after the persisted next eligible time to inspect recovery. Keep automatic sending disabled. The isolated discover mode is available through Global Website Agent, registered by PR #8; see [the unified control panel](UNIFIED_WORKFLOW.md). Discovery writes still require explicit owner approval.
+6. Rerun after the persisted next eligible time to inspect recovery. Keep automatic sending disabled. The isolated discover mode is available through UK Website Agent, registered by PR #8; see [the unified control panel](UNIFIED_WORKFLOW.md). Discovery writes still require explicit owner approval.
 
 ## Verification
 
 Deterministic offline tests cover the 30 requested failure categories, including primary/secondary source emptiness/outages, irrelevant and missing websites, geographic/niche/city fallback, permission denial, 429/503, partial transfers, schema drift, quota exhaustion, interruptions, DB-write rollback, persisted resume, duplicate and prior-contact suppression and sending-off behavior. They include a real PyArrow Parquet parser over mocked HTTP ranges, a real streaming XML parser, and a real supervised child-process invocation using only local fixture data. No fixture represents a claimed live business.
 
-Current verification and live dataset measurements are recorded in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md). The credentialed `website-agent discover --country US` command and real website verification have **not** run: GitHub-hosted execution awaits owner quota/destination review and explicit dispatch/write approvals; local credentials need not be copied. Public dataset probes are real reads, but do not establish verified prospects or production readiness.
+Current verification and live dataset measurements are recorded in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md). The credentialed `website-agent discover --country GB` command and real website verification have **not** run: GitHub-hosted execution awaits owner quota/destination review and explicit dispatch/write approvals; local credentials need not be copied. Public dataset probes are real reads, but do not establish verified prospects or production readiness.
 
 For a reproducible, credential-free dataset diagnostic (no website visits, database writes, AI, hosting or mail), run:
 
 ```bash
-uv run python scripts/probe_discovery.py --country US --city "New York" --niche salons --bbox -74.03 40.70 -73.95 40.78
+uv run python scripts/probe_discovery.py --country GB --city "London" --niche salons --bbox -0.25 51.45 -0.12 51.53
 ```
 
 It runs the supervised production data reader with unchanged budgets, prints aggregate metrics and retains source candidates only in ignored `private/discovery-probe-aws.json`. `dataset_probe_only` is explicitly not a discovery/admission success. `--endpoint azure` is available for a deliberate diagnostic; automatic production fallback remains outage-only. Do not use diagnostics to circumvent Retry-After. No new test workflow is created.

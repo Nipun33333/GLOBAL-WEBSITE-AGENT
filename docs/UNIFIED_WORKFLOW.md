@@ -60,6 +60,14 @@ Sanitized `database.status` may be one of:
 
 A stored Secret is intentionally unreadable from GitHub. None of these checks reveals secret values. The GitHub workflow remains disabled for automatic production execution until its existing account/cost gates are reviewed.
 
+### First owner-run: safe initialization of an empty database
+
+If the dedicated Supabase database accepts the verified SSL session connection but has **no public tables yet**, the fresh repository-owner **Run workflow** invocation will now execute the checked-in `database/migrations/001_initial.sql` once, through the existing `website-agent migrate` implementation, to create its application schema and record the migration checksum. It then performs the same read-only schema verification before running `daily`. **This is a real PostgreSQL schema write**, not a mock. It is allowed only for a fresh owner-dispatched run, never by schedules or reruns.
+
+If **any public table already exists** (including a partially migrated agent schema), the bootstrap deliberately refuses to write and emits `schema_bootstrap=bootstrap_requires_review_nonempty_public_schema`. Do not automatically drop or alter existing tables. Review and back up existing records before planning recovery. A schema-write failure is sanitized as `bootstrap_failed_requires_schema_review`; a second run will not automatically overwrite partial schema.
+
+On a fresh database, the bootstrap may succeed but business discovery may subsequently defer because of location business-hour windows, free-resource budgets, source availability, missing business facts, or disabled generation/deployment/sending permissions. Database readiness alone does not authorize contacting any customer.
+
 ### Account diagnostics on a blocked manual run
 
 A one-click manual run attempts a bounded, credentialed database/schema preflight before any prospect writes. If the database is unavailable, it now publishes a sanitized database status such as `authentication_rejected`, `database_or_schema_missing`, `connection_tls_or_configuration_unavailable`, or `missing_database_url`. It also performs read-only Gemini model-metadata, Netlify existing-site access and Gmail mailbox-identity checks, using existing GitHub Secrets. No model generation, site deployment, Gmail draft creation or email sending occurs in these checks.

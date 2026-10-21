@@ -233,7 +233,7 @@ def test_discovery_isolated_argv_secrets_and_aggregate_output(monkeypatch, setti
     }.items():
         monkeypatch.setenv(key, value)
     settings.database_url = "postgresql+psycopg://fixture:secret@db.example/postgres"
-    monkeypatch.setattr(live, "window_check", lambda _: {"us_window_open": True})
+    monkeypatch.setattr(live, "window_check", lambda _: {"gb_window_open": True})
     runner = Mock(return_value=SimpleNamespace(returncode=exit_code))
     monkeypatch.setattr(live.subprocess, "run", runner)
     conn = Mock()
@@ -253,7 +253,7 @@ def test_discovery_isolated_argv_secrets_and_aggregate_output(monkeypatch, setti
 
     monkeypatch.setattr(live, "readonly_database", database)
     result = live.discover(settings, config)
-    assert runner.call_args.args[0][-3:] == ["discover", "--country", "US"]
+    assert runner.call_args.args[0][-3:] == ["discover", "--country", "GB"]
     env = runner.call_args.kwargs["env"]
     assert not set(live.SECRET_NAMES[1:]) & set(env)
     assert "GITHUB_STEP_SUMMARY" not in env and env["ENABLE_SENDING"] == "false"
@@ -267,7 +267,7 @@ def test_discovery_isolated_argv_secrets_and_aggregate_output(monkeypatch, setti
 
 
 def test_closed_window_never_starts_discovery(monkeypatch, settings, config):
-    monkeypatch.setattr(live, "window_check", lambda _: {"us_window_open": False})
+    monkeypatch.setattr(live, "window_check", lambda _: {"gb_window_open": False})
     runner = Mock()
     monkeypatch.setattr(live.subprocess, "run", runner)
     assert live.discover(settings, config)["status"] == "blocked_local_research_window"
@@ -280,7 +280,7 @@ def test_diagnostics_mode_never_invokes_discovery(monkeypatch, tmp_path, setting
     monkeypatch.setattr(live, "guard", lambda _: None)
     monkeypatch.setattr(live, "Settings", lambda **kw: settings)
     monkeypatch.setattr(type(settings), "config", lambda _: config)
-    monkeypatch.setattr(live, "window_check", lambda _: {"us_window_open": False})
+    monkeypatch.setattr(live, "window_check", lambda _: {"gb_window_open": False})
     for name in ["database_check", "gemini_check", "netlify_check", "gmail_check"]:
         monkeypatch.setattr(live, name, Mock(return_value={"status": "verified_fixture"}))
     discovery = Mock(side_effect=AssertionError("not authorized"))

@@ -1,12 +1,12 @@
 # All limits are GLOBAL. Edit configuration, not Python, to change coverage.
 limits:
   discovered: 30
-  inspected: 10
-  qualified: 5
+  inspected: 1
+  qualified: 1
   previews_daily: 2
   outreach_daily: 2
-  followups_daily: 2
-  max_followups: 2
+  followups_daily: 0
+  max_followups: 0
   threshold: 55
   ai_requests_daily: 30
   ai_budget_usd: 1.0

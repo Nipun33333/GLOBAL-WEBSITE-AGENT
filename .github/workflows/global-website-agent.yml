@@ -1,4 +1,4 @@
-name: Global Website Agent
+name: UK Website Agent
 on:
   workflow_dispatch:  # One-click owner dispatch; no form inputs.
   schedule:
@@ -23,7 +23,7 @@ jobs:
     env:
       ONE_CLICK_MODE: 'true'
       AGENT_MODE: 'daily'
-      AGENT_COUNTRY: ''
+      AGENT_COUNTRY: 'GB'  # ISO code for the entire United Kingdom
       AGENT_CRON: ${{ github.event.schedule }}
       REVIEWED_COMMIT: ''
       WRITE_APPROVAL: ''

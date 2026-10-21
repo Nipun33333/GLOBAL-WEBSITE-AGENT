@@ -238,6 +238,15 @@ def test_account_metadata_403_does_not_probe_alternatives(ai_case):
     client.models.generate_content.assert_not_called()
 
 
+def test_official_31_flash_lite_fallback_is_available_for_review():
+    policy = GeminiPolicy()
+    assert "gemini-3.1-flash-lite" in policy.fallback_models
+    assert policy.capabilities["gemini-3.1-flash-lite"].structured_output
+    assert policy.capabilities["gemini-3.1-flash-lite"].output_tokens >= policy.max_output_tokens
+    # A public model listing is not evidence the account may use it for free.
+    assert "gemini-3.1-flash-lite" not in policy.usage_authorizations
+
+
 def test_explicit_zero_requires_real_owner_attestation_default():
     policy = GeminiPolicy()
     assert policy.usage_authorizations == {} and not policy.allow_paid_fallback

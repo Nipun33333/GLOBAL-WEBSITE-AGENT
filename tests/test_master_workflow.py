@@ -42,7 +42,7 @@ def env(**changes):
 @pytest.mark.parametrize("mode", sorted(master.MODES))
 def test_every_mode_requires_explicit_writes_and_separate_capabilities(mode):
     phrase = (
-        "APPROVE_US_DISCOVERY_WRITES"
+        "APPROVE_GB_DISCOVERY_WRITES"
         if mode == "discover"
         else "APPROVE_" + mode.upper().replace("-", "_") + "_WRITES"
     )
@@ -73,7 +73,7 @@ def test_every_mode_requires_explicit_writes_and_separate_capabilities(mode):
         {"AGENT_COUNTRY": "US; x"},
         {"FREE_LIMITS_REVIEWED": "false"},
         {"DATABASE_REVIEWED": "false"},
-        {"AGENT_MODE": "discover", "AGENT_COUNTRY": "GB", "WRITE_APPROVAL": "APPROVE_US_DISCOVERY_WRITES"},
+        {"AGENT_MODE": "discover", "AGENT_COUNTRY": "US", "WRITE_APPROVAL": "APPROVE_GB_DISCOVERY_WRITES"},
     ],
 )
 def test_rejected_preflight(change):
@@ -108,7 +108,7 @@ def test_readonly_and_discover_cannot_inherit_side_effect_permissions():
         result = master.plan(
             env(
                 AGENT_MODE=mode,
-                WRITE_APPROVAL="APPROVE_US_DISCOVERY_WRITES",
+                WRITE_APPROVAL="APPROVE_GB_DISCOVERY_WRITES",
                 ENABLE_SENDING="true",
                 ALLOW_SENDING="true",
                 ALLOW_GENERATION="true",
@@ -183,7 +183,7 @@ def test_one_click_launch_needs_no_user_inputs_and_cannot_cross_branch():
     )
     selected = master.plan(one_click, SHA)
     assert selected["mode"] == "daily"
-    assert selected["country"] == ""
+    assert selected["country"] == "GB"
     assert not selected["scheduled"]
     assert not selected["sending"]
     for change in (

@@ -18,19 +18,12 @@ from website_agent.security import Blocked, domain, email_address, public_addres
 
 def enable(session, settings, prospect):
     settings.enable_sending = True
-    set_config(
-        session,
-        "production_readiness",
-        {"validated": True, "import_digest": "digest", "base44_audience_exclusion_reference": "review"},
-    )
     prospect.eligibility = {
         "basis": "consent",
         "contact_type": "corporate",
         "evidence_reference": "signed permission",
         "reviewed_by": "reviewer",
         "valid_until": "2027-01-01",
-        "base44_excluded": True,
-        "audience_evidence": "exclusive audience",
     }
     session.add(
         CountryPolicy(
@@ -282,7 +275,7 @@ def test_imports_require_complete_attestation(session, tmp_path):
     file.write_text(
         json.dumps(
             {
-                "source": "Base44",
+                "source": "manually reviewed old contacts",
                 "exported_at": "2026-10-20",
                 "contacts": [{"email": "info@example.com"}],
                 "opt_outs": [],
@@ -297,14 +290,13 @@ def test_imports_require_complete_attestation(session, tmp_path):
             {
                 "reviewed_by": "Owner",
                 "import_digest": data["digest"],
-                "base44_audience_exclusion_reference": "partition",
                 "history_export_complete": True,
                 "suppression_export_complete": True,
             }
         )
     )
     validate_history(session, file)
-    assert get_config(session, "production_readiness")["validated"]
+    assert get_config(session, "external_history_review")["validated"]
     file.write_text("{}")
     with pytest.raises(Blocked):
         validate_history(session, file)

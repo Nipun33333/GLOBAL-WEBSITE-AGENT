@@ -88,6 +88,49 @@ def plan(env, actual_sha):
     return {"mode": mode, "country": country, "scheduled": scheduled, "revision": actual_sha, **capabilities}
 
 
+def classify_database_error(exc):
+    """Return only fixed safe identifiers; never expose PostgreSQL's error message."""
+    from website_agent import live_verification as live
+
+    if isinstance(exc, live.CheckFailed) and exc.reason:
+        return exc.reason
+    original = getattr(exc, "orig", None) or exc
+    state = getattr(original, "sqlstate", None)
+    if state in {"28P01", "28000"}:
+        return "authentication_rejected"
+    if state in {"3D000", "42P01", "42703"}:
+        return "database_or_schema_missing"
+    if state in {"53300", "53100", "53200"}:
+        return "database_capacity_unavailable"
+    # Match only known network/security patterns; NEVER publish the actual exception.
+    description = str(original).lower()
+    if any(t in description for t in (
+        "certificate verify failed", "certificate has expired",
+        "unable to get local issuer certificate", "self-signed certificate",
+        "certificate is not trusted", "hostname mismatch", "certificate verify",
+    )):
+        return "tls_certificate_verification_failed"
+    if any(t in description for t in (
+        "could not translate host name", "name or service not known",
+        "nodename nor servname", "temporary failure in name resolution",
+    )):
+        return "database_dns_resolution_failed"
+    if any(t in description for t in (
+        "network is unreachable", "no route to host", "address family not supported",
+        "cannot assign requested address",
+    )):
+        return "database_network_or_ipv6_unreachable"
+    if any(t in description for t in ("connection timed out", "timeout expired")):
+        return "database_connection_timed_out"
+    if "connection refused" in description:
+        return "database_connection_refused"
+    if "password authentication failed" in description:
+        return "authentication_rejected"
+    if "tenant or user not found" in description or "invalid tenant" in description:
+        return "pooler_tenant_or_user_unavailable"
+    return "connection_tls_or_configuration_unavailable"
+
+
 def safe_readonly_account_checks(settings):
     """Metadata/identity only; no generation, deployment, draft or mail mutation."""
     if (
@@ -145,21 +188,7 @@ def execute(selected):
         try:
             check = live.database_check(settings, config)
         except Exception as exc:
-            # Only emit allowlisted reason identifiers: never driver error bodies.
-            if isinstance(exc, live.CheckFailed) and exc.reason:
-                reason = exc.reason
-            else:
-                original = getattr(exc, "orig", None)
-                state = getattr(original, "sqlstate", None)
-                if state in {"28P01", "28000"}:
-                    reason = "authentication_rejected"
-                elif state in {"3D000", "42P01", "42703"}:
-                    reason = "database_or_schema_missing"
-                elif state in {"53300", "53100", "53200"}:
-                    reason = "database_capacity_unavailable"
-                else:
-                    reason = "connection_tls_or_configuration_unavailable"
-            check = {"status": reason, "discovery_ready": False}
+            check = {"status": classify_database_error(exc), "discovery_ready": False}
     if not check.get("discovery_ready"):
         result = {"status": "blocked_database_preflight", "mode": mode, "database": check}
         result.update(safe_readonly_account_checks(settings))

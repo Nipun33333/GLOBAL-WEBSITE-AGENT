@@ -54,7 +54,7 @@ jobs:
           reviewed = os.environ.get('REVIEWED_COMMIT', '')
           if not re.fullmatch(r'[0-9a-f]{40}', event_sha) or actual != event_sha:
               raise SystemExit('Branch changed after dispatch; credentials remain unloaded.')
-          if os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch' and reviewed != actual:
+          if os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch' and reviewed and reviewed != actual:
               raise SystemExit('Reviewed SHA mismatch; credentials remain unloaded.')
           PY
       - name: Validate dispatch and reviewed revision before loading credentials

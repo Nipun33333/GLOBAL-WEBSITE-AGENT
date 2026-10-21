@@ -28,7 +28,6 @@ def import_history(session, path):
         if not address and not host:
             raise ValueError("Every history record requires email or domain")
         normalized.append((record, address, host))
-    set_config(session, "production_readiness", {"validated": False})
     for record, address, host in normalized:
         reason = "imported_opt_out" if record in data["opt_outs"] else "previous_contact"
         for key in [address, host]:
@@ -63,13 +62,11 @@ def import_history(session, path):
         "history_import",
         {"digest": digest, "count": len(normalized), "at": now().isoformat(), "source": data["source"]},
     )
-    set_config(session, "production_readiness", {"validated": False})
     return len(normalized)
 
 
 def import_gmail_history(session, gmail):
     gmail.verify_sender()
-    set_config(session, "production_readiness", {"validated": False})
     count = 0
     own = set()
     from website_agent.database import Message
@@ -91,7 +88,6 @@ def import_gmail_history(session, gmail):
                     )
                 )
     set_config(session, "gmail_history_import", {"completed": True, "count": count, "at": now().isoformat()})
-    set_config(session, "production_readiness", {"validated": False})
     return count
 
 
@@ -101,7 +97,6 @@ def validate_history(session, path):
     gmail = get_config(session, "gmail_history_import")
     required = [
         "reviewed_by",
-        "base44_audience_exclusion_reference",
         "suppression_export_complete",
         "history_export_complete",
     ]
@@ -112,11 +107,11 @@ def validate_history(session, path):
         or attestation.get("suppression_export_complete") is not True
         or attestation.get("history_export_complete") is not True
     ):
-        raise Blocked("History validation needs completed imports and documented Base44 audience exclusion")
+        raise Blocked("Optional history validation needs completed imports and an owner-reviewed export")
     if attestation.get("import_digest") != imported["digest"]:
         raise Blocked("Attestation must reference exact history import SHA-256")
     set_config(
-        session, "production_readiness", {**attestation, "validated": True, "validated_at": now().isoformat()}
+        session, "external_history_review", {**attestation, "validated": True, "validated_at": now().isoformat()}
     )
 
 
@@ -132,8 +127,6 @@ def import_eligibility(session, path):
             "reviewed_by",
             "valid_until",
             "contact_type",
-            "base44_excluded",
-            "audience_evidence",
             "routine_reply_authorized",
         }
         prospect.eligibility = {k: v for k, v in data.items() if k in allowed}

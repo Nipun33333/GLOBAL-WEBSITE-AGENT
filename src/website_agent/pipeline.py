@@ -351,7 +351,18 @@ class Pipeline:
         schedule_date = now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()
         schedule_slot = self.schedule_slot() if scheduled else None
         discovery_checkpoint = get_config(self.session, "discovery_checkpoint")
-        if scheduled and discovery_checkpoint.get("slot", discovery_checkpoint.get("date")) == schedule_slot:
+        # Work through previously verified Overture prospects before spending
+        # another bounded scan (which may consume five minutes and defer).
+        # This is also important when the next provider retry is in the future.
+        queued_business = self.session.scalar(
+            select(Prospect.id)
+            .where(Prospect.status.in_(["discovered", "audited", "qualified"]))
+            .limit(1)
+        )
+        if queued_business is not None:
+            discovered_location = False
+            self.log("discovery_skipped", reason="existing_business_queue_has_priority")
+        elif scheduled and discovery_checkpoint.get("slot", discovery_checkpoint.get("date")) == schedule_slot:
             discovered_location = True
         else:
             discovered_location = self.step("discovery", lambda: self.discover(country))

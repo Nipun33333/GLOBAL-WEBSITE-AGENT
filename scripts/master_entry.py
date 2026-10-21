@@ -204,11 +204,9 @@ def execute(selected):
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)
     # Apply the same verified TLS settings to the write connection as to preflight.
-    import certifi
-
     env["DATABASE_URL"] = (
         live.postgres_session_url(settings.database_url)
-        .update_query_dict({"sslmode": "verify-full", "sslrootcert": certifi.where()})
+        .update_query_dict({"sslmode": "verify-full", "sslrootcert": live.database_sslrootcert()})
         .render_as_string(hide_password=False)
     )
     env["PGCONNECT_TIMEOUT"] = "10"

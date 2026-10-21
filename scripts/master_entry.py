@@ -109,7 +109,9 @@ def execute(selected):
     config = settings.config()
     if selected["country"] and selected["country"] not in {loc.country for loc in config.locations}:
         raise ValueError("Country is not configured")
-    check = live.database_check(settings, config)
+    # Convert database/TLS/provider exceptions into a sanitized actionable result.
+    # Never include connection strings, credentials, or driver exception messages.
+    check = live.run_check(lambda: live.database_check(settings, config))
     if not check.get("discovery_ready"):
         live.publish({"status": "blocked_database_preflight", "mode": mode, "database": check})
         return 2

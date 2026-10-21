@@ -350,9 +350,9 @@ def test_resource_failures_defer(session, settings, discovery_setup, reason):
 
 
 @pytest.mark.parametrize("key", ["fixture.example", "contact@fixture.example"])
-def test_base44_exclusions_apply_before_network(session, settings, discovery_setup, key):
+def test_stored_suppressions_apply_before_network(session, settings, discovery_setup, key):
     _, make = discovery_setup
-    suppress(session, key, "previous_contact", "Base44 fixture")
+    suppress(session, key, "previous_contact", "previous contact fixture")
     engine = make(session, settings, lambda *a: batch([record()]))
     engine.web.fetch = Mock(side_effect=AssertionError("must not fetch"))
     assert engine.run()["accepted"] == 0

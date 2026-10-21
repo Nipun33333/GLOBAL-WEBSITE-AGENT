@@ -169,6 +169,23 @@ def safe_discovery_details(value):
     return out
 
 
+def eligible_deferred_success(code, mode, counts, run_diagnostics):
+    """Only an independently persisted, stage-error-free retry can end cleanly."""
+    discovery = run_diagnostics.get("discovery", {})
+    return bool(
+        mode == "daily"
+        and code == 2
+        and run_diagnostics.get("persisted_status") in {
+            "deferred_resource_limit", "deferred_provider_unavailable"
+        }
+        and discovery.get("status") in {
+            "deferred_resource_limit", "deferred_provider_unavailable"
+        }
+        and discovery.get("next_at")
+        and counts.get("failed_stages") == 0
+    )
+
+
 def safe_readonly_account_checks(settings):
     """Metadata/identity only; no generation, deployment, draft or mail mutation."""
     if (
@@ -414,19 +431,7 @@ def execute(selected):
     # Keep the original CLI exit_code visible, but don't make GitHub's job red for
     # an intentional, resumable discovery cooldown. Missing persistence evidence
     # or stage failures must still produce a nonzero workflow exit code.
-    recovered = run_diagnostics.get("discovery", {})
-    normal_defer = (
-        mode == "daily"
-        and code == 2
-        and run_diagnostics.get("persisted_status") in {
-            "deferred_resource_limit", "deferred_provider_unavailable"
-        }
-        and recovered.get("status") in {
-            "deferred_resource_limit", "deferred_provider_unavailable"
-        }
-        and recovered.get("next_at")
-        and counts.get("failed_stages") == 0
-    )
+    normal_defer = eligible_deferred_success(code, mode, counts, run_diagnostics)
     if normal_defer:
         status = "deferred_retry_scheduled"
         print("::notice title=Discovery deferred::Safe retry is persisted; see sanitized run_diagnostics.")

@@ -32,6 +32,7 @@ def plan(env, actual_sha):
         raise ValueError("Repository/rerun rejected")
     event = env.get("GITHUB_EVENT_NAME")
     scheduled = event == "schedule"
+    one_click = event == "workflow_dispatch" and env.get("ONE_CLICK_MODE") == "true"
     if event not in {"schedule", "workflow_dispatch"}:
         raise ValueError("Unsupported event")
     if not re.fullmatch(r"[0-9a-f]{40}", actual_sha) or env.get("GITHUB_SHA") != actual_sha:
@@ -42,26 +43,27 @@ def plan(env, actual_sha):
         ):
             raise ValueError("Scheduled automation disabled")
         mode = CRONS.get(env.get("AGENT_CRON"))
-        approved = env.get("SCHEDULED_MODES", "").split(",")
+        approved = (env.get("SCHEDULED_MODES") or "daily").split(",")
         if mode not in approved:
             raise ValueError("Scheduled mode not owner approved")
         country = ""
     else:
-        if env.get("GITHUB_REF") not in {"refs/heads/main", "refs/heads/feature/free-overture-discovery"}:
+        permitted_refs = {"refs/heads/main"} if one_click else {"refs/heads/main", "refs/heads/feature/free-overture-discovery"}
+        if env.get("GITHUB_REF") not in permitted_refs:
             raise ValueError("Unreviewed branch")
         if any(env.get(k) != "Nipun33333" for k in ("GITHUB_ACTOR", "GITHUB_TRIGGERING_ACTOR")):
             raise ValueError("Owner dispatch required")
-        if env.get("REVIEWED_COMMIT") != actual_sha:
+        if not one_click and env.get("REVIEWED_COMMIT") != actual_sha:
             raise ValueError("Reviewed revision mismatch")
-        mode = env.get("AGENT_MODE")
-        country = env.get("AGENT_COUNTRY", "").strip().upper()
+        mode = "daily" if one_click else env.get("AGENT_MODE")
+        country = "" if one_click else env.get("AGENT_COUNTRY", "").strip().upper()
         if country and not re.fullmatch(r"[A-Z]{2}", country):
             raise ValueError("Country must be an ISO code")
     if mode not in MODES:
         raise ValueError("Unsupported mode")
-    if any(env.get(k) != "true" for k in ("FREE_LIMITS_REVIEWED", "DATABASE_REVIEWED")):
+    if not one_click and any(env.get(k) != "true" for k in ("FREE_LIMITS_REVIEWED", "DATABASE_REVIEWED")):
         raise ValueError("Quota and database review required")
-    if not scheduled and mode != "diagnostics":
+    if not scheduled and not one_click and mode != "diagnostics":
         phrase = (
             "APPROVE_US_DISCOVERY_WRITES"
             if mode == "discover"

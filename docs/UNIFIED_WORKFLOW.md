@@ -43,6 +43,14 @@ Automatic follow-up sends and automatic customer replies are disabled. Customer 
 
 Current Gemini `model_prices` and `usage_authorizations` are empty; AI generation will defer safely until actual current model eligibility and pricing have been reviewed. Overture discovery does not need `DISCOVERY_API_KEY`. OSM remains unconfigured until license and dataset obligations are satisfied.
 
+### Account diagnostics on a blocked manual run
+
+A one-click manual run attempts a bounded, credentialed database/schema preflight before any prospect writes. If the database is unavailable, it now publishes a sanitized database status such as `authentication_rejected`, `database_or_schema_missing`, `connection_tls_or_configuration_unavailable`, or `missing_database_url`. It also performs read-only Gemini model-metadata, Netlify existing-site access and Gmail mailbox-identity checks, using existing GitHub Secrets. No model generation, site deployment, Gmail draft creation or email sending occurs in these checks.
+
+These provider probes run only for an owner-initiated manual invocation when the database preflight is blocked, not on the two scheduled ticks. Missing or invalid account credentials are not retrievable from GitHub; rotate only the affected secret through its provider and GitHub Settings. A model listed in public Google documentation still requires separate proof of free account allowance and a current `gemini.usage_authorizations` entry.
+
+The **21 October 2026** live workflow run [#39649523233](https://github.com/Nipun33333/GLOBAL-WEBSITE-AGENT/actions/runs/39649523233) passed GitHub checkout, SHA validation and dependency installation, but exited in `Execute approved operation` without publishing the underlying problem. The improved error-status reports were committed **after that run** and have not yet been exercised in a new live GitHub Actions run.
+
 ### What a failed or deferred run means
 
 Read the job summary and the sanitized `agent-result-...` artifact. Status `blocked_database_preflight` means database connection/schema/migration requirements remain unsatisfied. `deferred` means persistent capacity/source recovery conditions need attention. A successful provider dataset query is not proof of a verified business, deployment or sent email.

@@ -22,7 +22,7 @@ from website_agent.gmail import SCOPES
 from website_agent.scheduler import contact_time
 from website_agent.settings import Settings
 
-APPROVAL = "APPROVE_US_DISCOVERY_WRITES"
+APPROVAL = "APPROVE_GB_DISCOVERY_WRITES"
 SECRET_NAMES = (
     "DATABASE_URL GEMINI_API_KEY NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID GMAIL_CLIENT_ID "
     "GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN SENDER_NAME SENDER_EMAIL REPLY_TO "
@@ -381,19 +381,19 @@ def run_check(fn):
 
 def window_check(config):
     at = now()
-    locations = [loc for loc in config.locations if loc.country == "US"]
+    locations = [loc for loc in config.locations if loc.country == "GB"]
     return {
         "checked_at_utc": at.isoformat(),
-        "us_window_open": any(
+        "gb_window_open": any(
             contact_time(at, loc.country, loc.timezone, config.research_hours, loc.subdivision)
             for loc in locations
         ),
-        "new_york_local_time": at.astimezone(ZoneInfo("America/New_York")).isoformat(),
+        "london_local_time": at.astimezone(ZoneInfo("Europe/London")).isoformat(),
     }
 
 
 def discover(settings, config):
-    if not window_check(config)["us_window_open"]:
+    if not window_check(config)["gb_window_open"]:
         return {"status": "blocked_local_research_window"}
     if config.discovery_provider != "open_data":
         return {"status": "blocked_provider_configuration"}
@@ -412,7 +412,7 @@ def discover(settings, config):
     child_env["DATABASE_URL"] = url.render_as_string(hide_password=False)
     try:
         completed = subprocess.run(
-            [sys.executable, "-m", "website_agent.cli", "discover", "--country", "US"],
+            [sys.executable, "-m", "website_agent.cli", "discover", "--country", "GB"],
             env=child_env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

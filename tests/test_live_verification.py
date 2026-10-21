@@ -73,11 +73,43 @@ def test_database_connection_forces_readonly_tls_and_rolls_back(monkeypatch, set
     with live.readonly_database(settings) as conn:
         assert conn is connection
     args = factory.call_args.kwargs["connect_args"]
-    assert args["sslmode"] == "verify-full" and "default_transaction_read_only=on" in args["options"]
-    assert str(connection.execute.call_args.args[0]) == "SET TRANSACTION READ ONLY"
+    assert args["sslmode"] == "verify-full" and "options" not in args
+    assert [str(call.args[0]) for call in connection.execute.call_args_list] == [
+        "SET TRANSACTION READ ONLY",
+        "SET LOCAL statement_timeout = 10000",
+    ]
     connection.commit.assert_not_called()
     connection.rollback.assert_called_once()
     engine.dispose.assert_called_once()
+
+
+@pytest.mark.parametrize("scheme", ["postgresql", "postgres", "postgresql+psycopg"])
+def test_standard_supabase_session_urls_use_psycopg_driver(monkeypatch, settings, scheme):
+    settings.database_url = f"{scheme}://fixture:secret@pooler.example:5432/postgres"
+    engine = MagicMock()
+    engine.connect.return_value.__enter__.return_value.scalar.return_value = "on"
+    factory = Mock(return_value=engine)
+    monkeypatch.setattr(live, "create_engine", factory)
+    with live.readonly_database(settings):
+        pass
+    selected = factory.call_args.args[0]
+    assert selected.drivername == "postgresql+psycopg"
+    assert selected.port == 5432
+    assert selected.password == "secret"
+    assert factory.call_args.kwargs["connect_args"]["sslmode"] == "verify-full"
+
+
+def test_invalid_pooler_urls_report_safe_reasons_without_secrets():
+    cases = [
+        ("postgresql://fixture:secret@pooler.example:6543/postgres", "transaction_pooler_not_supported"),
+        ("sqlite:///fixture.db", "unsupported_database_driver"),
+        ("postgresql://fixture:secret@pooler.example:6544/postgres", "database_url_missing_required_parts"),
+    ]
+    for value, reason in cases:
+        with pytest.raises(live.CheckFailed) as raised:
+            live.postgres_session_url(value)
+        assert raised.value.reason == reason
+        assert "secret" not in str(raised.value)
 
 
 def test_transaction_pooler_rejected_without_connection(monkeypatch, settings):

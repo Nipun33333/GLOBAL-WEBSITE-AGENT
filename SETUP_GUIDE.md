@@ -1,5 +1,7 @@
 # Setup guide
 
+The existing 12 required GitHub Secrets are already configured. Reuse them through the registered [manual diagnostics workflow](docs/MANUAL_LIVE_VERIFICATION.md); no local `.env` recreation is required. The account-creation instructions below are for new installations or provider-side recovery only. See [current readiness and owner actions](docs/FINAL_READINESS.md).
+
 Use only this repository and dedicated infrastructure for this agent. Do not reuse or change Base44's database or workflows.
 
 ## 1. Persistent PostgreSQL
@@ -17,6 +19,8 @@ Use your provider's CA configuration where necessary. Production requires Postgr
 ```bash
 uv run website-agent migrate
 ```
+
+For an existing production database, first run read-only diagnostics. Missing migrations do not authorize changes: verify a restorable provider backup, review `database/migrations/001_initial.sql`, and obtain separate owner approval before executing it with the existing securely configured runtime. Never run the PostgreSQL test suite against production.
 
 Run migrations with a dedicated migration role if possible. Restrict the runtime role to application tables and schema usage. Never expose these tables through a public Supabase API. Configure RLS/network access and backups according to your deployment. The application is server-side and does not need Supabase's public anon key.
 
@@ -83,7 +87,7 @@ References: [Gmail API](https://developers.google.com/workspace/gmail/api/refere
 
 ## 5. Exact GitHub secrets and variables
 
-Configure the repository's `agent-runtime` GitHub Environment (or repository secrets inherited by that environment). None were present during implementation.
+Configure the repository's `agent-runtime` GitHub Environment (or repository secrets inherited by that environment). The 12 required repository secret names are confirmed present; DISCOVERY_API_KEY remains optional. Do not retrieve their values or duplicate them locally.
 
 | Secret | Purpose |
 |---|---|
@@ -121,3 +125,7 @@ Read-only doctor checks do not verify generation, quota affordability, provider 
 ## Current live setup prerequisite
 
 See [LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md) for measured evidence. GitHub Secrets cannot be read back and are not downloaded by this task. Configure existing credentials directly in the ignored local `.env` file using your own secure process. Never paste credentials in chat or commit the file. Discovery-only needs `DATABASE_URL`; model, hosting and Gmail checks separately need their existing settings. Keep `AUTOMATION_ENABLED=false`, `ENABLE_SENDING=false`, and `ENABLE_ROUTINE_REPLIES=false`. Do not activate billing. Confirm actual account free usage before `live-smoke`; a configured API key alone does not establish that.
+
+## Confirmed public model documentation, not account access
+
+On 21 October 2026 the official documentation lists both [gemini-3.8-flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) and [gemini-4-argon](https://ai.google.dev/gemini-api/docs/models/gemini-4-argon), with structured outputs. Flash documents a 1,048,576 input-token limit and 65,536 output-token limit. [Official pricing](https://ai.google.dev/gemini-api/docs/pricing) lists a limited free tier for standard Flash and no free tier for Argon. This does not verify this account's tier or remaining quota. `model_prices: {}` and model settings remain unchanged; do not populate zero prices or select Argon until actual usage eligibility and approval are established.

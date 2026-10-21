@@ -88,4 +88,6 @@ The public dataset diagnostic does not need credentials: `uv run python scripts/
 
 ## Manual verification using existing GitHub Secrets
 
-For read-only database/account diagnostics and separately owner-approved US discovery, follow [the manual live verification guide](docs/MANUAL_LIVE_VERIFICATION.md). This new manual-only workflow needs separate owner registration on `main`, then dispatch on `feature/free-overture-discovery`; PR #6 stays unmerged. It does not use `daily`, modify the six production workflows, or require local copies of credentials.
+For read-only database/account diagnostics and separately owner-approved US discovery, follow [the manual live verification guide](docs/MANUAL_LIVE_VERIFICATION.md). Registration PR #7 is now merged on `main`; launch only on the reviewed `feature/free-overture-discovery` revision after the owner prerequisites are satisfied. PR #6 stays unmerged. It does not use `daily`, modify the six production workflows, or require local copies of credentials.
+
+Current capability-by-capability status, safeguards and the consolidated owner checklist are in [FINAL_READINESS.md](docs/FINAL_READINESS.md). Routine replies disabled now also means no automatically generated acknowledgment drafts; owner notifications still identify conversations requiring personal review.

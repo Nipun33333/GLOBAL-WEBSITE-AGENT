@@ -4,7 +4,11 @@ Implemented and committed in **Nipun33333/GLOBAL-WEBSITE-AGENT** only. The Base4
 
 The current feature-branch follow-up is documented in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md): spatial STAC selection, real bounded Parquet reads, recovery fixes and current validation. The historical results below remain historical. PR #6 remains unmerged.
 
-## Delivery status
+## Current follow-up
+
+Registration PR #7 is merged; the manual workflow is registered with zero live runs. All 12 required secret names are present at repository scope, and DISCOVERY_API_KEY is optional. No credentials need to be recreated locally. See [FINAL_READINESS.md](FINAL_READINESS.md) for current tests, public retrieval evidence, security fixes and owner actions. PR #6 remains open. The older integration/setup statements below describe the historical delivery, not missing GitHub Secrets today.
+
+## Historical delivery status
 
 The application, migration, integration adapters, configuration, security controls, tests and GitHub Actions workflows are implemented. **It is not yet verified as production-operational.** Service credentials, legal/provider authorization and Base44 history were not supplied. The defaults remain draft-only, and scheduled runtime jobs are gated by `AUTOMATION_ENABLED`.
 

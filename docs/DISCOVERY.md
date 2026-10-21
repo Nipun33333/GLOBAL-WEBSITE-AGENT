@@ -90,17 +90,17 @@ Primary references: [Overture cloud catalog and official endpoints](https://docs
 ## Safe discovery-only live test
 
 1. Leave `AUTOMATION_ENABLED`, `ENABLE_SENDING` and `ENABLE_ROUTINE_REPLIES` false/unset. Keep country sending policies disabled. No credential changes are required beyond an existing authorized database connection.
-2. Install the committed lockfile: `uv sync --frozen --extra dev`. Run `uv run website-agent migrate` against the dedicated database if not already migrated. No new schema migration is introduced by this change.
+2. Install the committed lockfile: `uv sync --frozen --extra dev`. Apply migrations only after read-only diagnosis, a verified backup and separate owner approval for database changes. No new schema migration is introduced by this change.
 3. Review one configured city envelope, category mapping, source license provenance and small budgets. Imported Base44 history/suppressions should already be present; they are not fetched from Base44 by this command.
 4. In that city's eligible local research window, run `uv run website-agent discover --country US` (or another configured ISO country). This invokes only discovery/database/report code. Do **not** substitute `daily` or `live-smoke`, which involve other integrations.
 5. Inspect `artifacts/report.md`, `workflow_runs`, `run_events`, `business_sources.evidence` and `configuration` task/circuit records. Fewer results, an empty result, or a documented deferral are legitimate. Do not weaken verification to achieve 30.
-6. Rerun after the persisted next eligible time to inspect recovery. Keep automatic sending disabled. Production workflow files remain unchanged; a manual local discovery-only command is provided without adding an Actions workflow.
+6. Rerun after the persisted next eligible time to inspect recovery. Keep automatic sending disabled. Production workflow files remain unchanged; a manual local discovery-only command is provided through the separately approved manual-only verification workflow, registered by PR #7. Discovery writes still require explicit owner approval.
 
 ## Verification
 
 Deterministic offline tests cover the 30 requested failure categories, including primary/secondary source emptiness/outages, irrelevant and missing websites, geographic/niche/city fallback, permission denial, 429/503, partial transfers, schema drift, quota exhaustion, interruptions, DB-write rollback, persisted resume, duplicate/Base44 suppression and sending-off behavior. They include a real PyArrow Parquet parser over mocked HTTP ranges, a real streaming XML parser, and a real supervised child-process invocation using only local fixture data. No fixture represents a claimed live business.
 
-Current verification and live dataset measurements are recorded in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md). The credentialed `website-agent discover --country US` command and real website verification have **not** run: local PostgreSQL credentials are missing and the measured US window was closed. Public dataset probes are real reads, but do not establish verified prospects or production readiness.
+Current verification and live dataset measurements are recorded in [LIVE_READINESS_REPORT.md](LIVE_READINESS_REPORT.md). The credentialed `website-agent discover --country US` command and real website verification have **not** run: GitHub-hosted execution awaits owner quota/destination review and explicit dispatch/write approvals; local credentials need not be copied. Public dataset probes are real reads, but do not establish verified prospects or production readiness.
 
 For a reproducible, credential-free dataset diagnostic (no website visits, database writes, AI, hosting or mail), run:
 
@@ -109,3 +109,5 @@ uv run python scripts/probe_discovery.py --country US --city "New York" --niche 
 ```
 
 It runs the supervised production data reader with unchanged budgets, prints aggregate metrics and retains source candidates only in ignored `private/discovery-probe-aws.json`. `dataset_probe_only` is explicitly not a discovery/admission success. `--endpoint azure` is available for a deliberate diagnostic; automatic production fallback remains outage-only. Do not use diagnostics to circumvent Retry-After. No new test workflow is created.
+
+The latest public dataset-only probes decoded the same 120 source IDs from AWS and Azure within unchanged bounds. This is not a production failover test or verified-lead admission. Optional configured Overpass requests now use the DNS-pinned public client with redirects refused and bounded retries; OSM remains disabled. See [FINAL_READINESS.md](FINAL_READINESS.md) for measurements and outstanding approvals.

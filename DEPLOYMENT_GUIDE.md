@@ -24,34 +24,28 @@ Open **Actions → Global Website Agent → Run workflow**. Follow [the mode/app
 
 The workflow uses agent-runtime, installs locked runtime dependencies, installs Chromium only for daily/live-smoke, and uploads aggregate allowlisted reports for one day. It never applies migrations. Generation, deployment, Gmail drafts and sending have independent permissions; all default disabled. Routine customer replies remain disabled and owner-controlled.
 
-## Base44 migration and sending activation
+## Standalone Gmail history and legally reviewed outreach
 
-1. Keep sending disabled. Export previously contacted businesses, thread IDs and opt-outs from Base44 using your own authorized access. This project never reads or changes Base44.
-2. Save the export in `private/history.json` following `config/history.example.json`. The loader records addresses/domains as suppressions and imports associated threads where a business domain is available. Do not commit the export.
-3. Run the completed-history scans:
+This repository has no connection to or audience assignment requirement from any other platform. Gmail's existing **Sent** and **Inbox** are checked live for each recipient immediately before sending; durable opt-outs and prior-contact suppressions are also checked.
+
+Optional bulk synchronization and manual independent history imports can further improve the suppression list. They are not mandatory gates for this agent:
 
 ```bash
-uv run website-agent import-history --file private/history.json
 uv run website-agent import-gmail
-uv run website-agent replies
-```
-
-4. Establish a documented audience partition excluding this agent's prospects from Base44. A history snapshot alone cannot eliminate a race with an independent system that continues contacting the same prospects. This application's database lock cannot lock Base44. Keep this project's production disabled if an exclusive audience cannot be established.
-5. Copy `config/history-validation.example.json` to `private/validation.json`. Supply the exact import SHA-256, reviewer, complete-export confirmations and real audience-exclusion reference. Then run:
-
-```bash
+# Only if the owner has an authorized, vendor-neutral historical opt-out export:
+uv run website-agent import-history --file private/history.json
 uv run website-agent validate-history --file private/validation.json
 ```
 
-6. Have a qualified reviewer configure current country rules in `config/country-policies.yml`: permitted legal bases/contact types, source reference, reviewer, expiry and local hours. **All eleven templates are deliberately disabled.** No country is assumed to allow unsolicited email. Public availability is not consent. Policy configuration is auditable in Git and synchronized to PostgreSQL on every run.
-7. Import per-business evidence using `config/eligibility.example.json`: genuine legal basis, contact type, review validity, source evidence and exclusive Base44 audience assignment. Where needed, include a verified business email and its evidence.
+Never upload private contact exports to GitHub or public Actions artifacts. These imports do not certify sending permission.
+
+A qualified reviewer must confirm the current legal requirements for each country and populate `config/country-policies.yml` with accurately reviewed rules. All eleven country templates remain disabled. Record actual per-prospect contact basis, evidence and expiry in `config/eligibility.example.json`, then use:
 
 ```bash
 uv run website-agent import-eligibility --file private/eligibility.json
 ```
 
-8. Confirm sender identity, physical address, OAuth permissions, model costs, provider rights, preview hosting and applicable local requirements. Inspect generated drafts. Use the live smoke test and a real draft-only daily run before any sending activation.
-9. Set `ENABLE_SENDING=true`, then request production mode. The master control panel always disables routine customer replies.
+Confirm the sender's identity, physical address, Gmail OAuth, model/hosting quotas, verified business mailbox and independent HTTPS demo. Real initial sends require the approved jurisdiction and recipient to pass the existing safety gates; the technical workflow switches alone do not make a business eligible.
 
 Autonomous messages use factual-claim-free multilingual catalog copy, the observed business name, and a verified preview. Gemini prepares suggested content, but arbitrary suggestions cannot become promises or prices in automatic sends. If a trusted operator deliberately edits database copy, the exact changed digest must be approved with `approve-copy --message-id ID --digest SHA256 --reviewer NAME`. This is an optional customization path, not a per-email requirement for catalog messages. Use `export-drafts` to inspect private copy/digests.
 

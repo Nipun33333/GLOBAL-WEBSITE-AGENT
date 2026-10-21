@@ -1,6 +1,6 @@
 # All limits are GLOBAL. Edit configuration, not Python, to change coverage.
 limits:
-  discovered: 30
+  discovered: 1
   inspected: 1
   qualified: 1
   previews_daily: 2

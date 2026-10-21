@@ -23,6 +23,7 @@ jobs:
       group: global-website-agent-runtime
       cancel-in-progress: false
     env:
+      ONE_CLICK_MODE: 'true'
       AGENT_MODE: ${{ inputs.mode }}
       AGENT_COUNTRY: ${{ inputs.country }}
       AGENT_CRON: ${{ github.event.schedule }}

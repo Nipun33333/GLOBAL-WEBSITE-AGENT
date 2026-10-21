@@ -191,6 +191,9 @@ def test_production_market_is_united_kingdom_only(settings):
     config = settings.config()
     assert data["operating_country"] == "GB"
     assert config.operating_country == "GB"
+    policies = yaml.safe_load(Path("config/country-policies.yml").read_text(encoding="utf-8"))
+    assert list(policies) == ["GB"]
+    assert policies["GB"]["enabled"] is False
     assert len(config.locations) == 10
     assert {loc.country for loc in config.locations} == {"GB"}
     assert {"London", "Manchester", "Glasgow", "Cardiff", "Belfast"}.issubset(

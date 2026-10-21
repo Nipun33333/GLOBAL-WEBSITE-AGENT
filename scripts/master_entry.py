@@ -172,7 +172,6 @@ def bootstrap_empty_agent_schema(settings, selected):
     ):
         return "bootstrap_not_authorized"
     try:
-        import certifi
         from sqlalchemy import inspect
 
         from website_agent import live_verification as live

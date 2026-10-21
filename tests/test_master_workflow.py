@@ -228,6 +228,30 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert secret not in json.dumps(result)
 
 
+def test_readonly_account_diagnostics_never_trigger_mutations(monkeypatch, settings):
+    from contextlib import nullcontext
+
+    import httpx
+
+    monkeypatch.setenv("LIVE_ACCOUNT_DIAGNOSTICS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+    monkeypatch.setattr(httpx, "Client", lambda **_: nullcontext(object()))
+    checks = {
+        "gemini": Mock(return_value={"status": "verified_metadata"}),
+        "netlify": Mock(return_value={"status": "verified_existing_site_access"}),
+        "gmail": Mock(return_value={"status": "verified_mailbox_identity"}),
+    }
+    for name, fn in checks.items():
+        monkeypatch.setattr(live, name + "_check", fn)
+    result = master.safe_readonly_account_checks(settings)
+    assert all(result[name] == fn.return_value for name, fn in checks.items())
+    assert all(fn.call_count == 1 for fn in checks.values())
+    # This read-only path does not invoke the normal mutating CLI, deploy or Gmail send.
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
+    assert master.safe_readonly_account_checks(settings) == {}
+    assert all(fn.call_count == 1 for fn in checks.values())
+
+
 def test_one_click_missing_database_secret_is_reported_without_connection_attempt(
     monkeypatch, settings
 ):

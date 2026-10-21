@@ -43,6 +43,23 @@ Automatic follow-up sends and automatic customer replies are disabled. Customer 
 
 Current Gemini `model_prices` and `usage_authorizations` are empty; AI generation will defer safely until actual current model eligibility and pricing have been reviewed. Overture discovery does not need `DISCOVERY_API_KEY`. OSM remains unconfigured until license and dataset obligations are satisfied.
 
+### Supabase connection setup for GitHub-hosted runners
+
+The database preflight keeps `sslmode=verify-full` and requires a session-persistent PostgreSQL connection (session advisory locks are used). GitHub-hosted runners may not have the IPv6 routing needed for a Supabase **direct** database endpoint. The supported IPv4-friendly alternative is the **Session pooler** URL from the existing Supabase project's **Connect → Session pooler**, using port **5432** and username `postgres.[PROJECT_REF]`. The **Transaction pooler** on port **6543** is intentionally rejected. Copy the exact connection details from Supabase; do not guess the pooler hostname or expose the password. Update the existing `DATABASE_URL` only through **GitHub → repository Settings → Secrets and variables → Actions**, not in chat.
+
+Supabase recommends your project's trusted database root certificate for verified TLS. Obtain it in the project's **Database settings → SSL configuration → Download certificate**. If the runner cannot verify its TLS certificate with the normal public CA bundle, add a **repository or `agent-runtime` environment Secret** named `SUPABASE_CA_CERT_PEM` containing the certificate's complete PEM text. The workflow writes the certificate to a temporary `0600` file and deletes it after the command. The CA certificate is public trust material, but storing it as a Secret avoids accidental log exposure. Never disable TLS verification to bypass a certificate error.
+
+Sanitized `database.status` may be one of:
+- `tls_certificate_verification_failed` — check the project's verified root certificate and hostname.
+- `database_network_or_ipv6_unreachable` — use the project's Session pooler when direct IPv6 access is unavailable.
+- `database_dns_resolution_failed` — check the host copied from the project's Connect page.
+- `database_connection_timed_out` / `database_connection_refused` — check running project, availability and network.
+- `authentication_rejected` / `pooler_tenant_or_user_unavailable` — check account credentials and session-pooler username; rotate **only** the affected database secret if necessary.
+- `transaction_pooler_not_supported` / `database_url_missing_required_parts` / `unsupported_database_driver` — replace an unsuitable URL with a permitted Session pooler or reachable direct URL.
+- `blocked_missing_migrations` / `blocked_schema_drift` — requires a separately authorized schema migration review.
+
+A stored Secret is intentionally unreadable from GitHub. None of these checks reveals secret values. The GitHub workflow remains disabled for automatic production execution until its existing account/cost gates are reviewed.
+
 ### Account diagnostics on a blocked manual run
 
 A one-click manual run attempts a bounded, credentialed database/schema preflight before any prospect writes. If the database is unavailable, it now publishes a sanitized database status such as `authentication_rejected`, `database_or_schema_missing`, `connection_tls_or_configuration_unavailable`, or `missing_database_url`. It also performs read-only Gemini model-metadata, Netlify existing-site access and Gmail mailbox-identity checks, using existing GitHub Secrets. No model generation, site deployment, Gmail draft creation or email sending occurs in these checks.

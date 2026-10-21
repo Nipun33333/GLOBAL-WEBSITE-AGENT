@@ -145,17 +145,20 @@ def execute(selected):
         try:
             check = live.database_check(settings, config)
         except Exception as exc:
-            # PostgreSQL SQLSTATE conveys a safe class of failure, not secret values.
-            original = getattr(exc, "orig", None)
-            state = getattr(original, "sqlstate", None)
-            if state in {"28P01", "28000"}:
-                reason = "authentication_rejected"
-            elif state in {"3D000", "42P01", "42703"}:
-                reason = "database_or_schema_missing"
-            elif state in {"53300", "53100", "53200"}:
-                reason = "database_capacity_unavailable"
+            # Only emit allowlisted reason identifiers: never driver error bodies.
+            if isinstance(exc, live.CheckFailed) and exc.reason:
+                reason = exc.reason
             else:
-                reason = "connection_tls_or_configuration_unavailable"
+                original = getattr(exc, "orig", None)
+                state = getattr(original, "sqlstate", None)
+                if state in {"28P01", "28000"}:
+                    reason = "authentication_rejected"
+                elif state in {"3D000", "42P01", "42703"}:
+                    reason = "database_or_schema_missing"
+                elif state in {"53300", "53100", "53200"}:
+                    reason = "database_capacity_unavailable"
+                else:
+                    reason = "connection_tls_or_configuration_unavailable"
             check = {"status": reason, "discovery_ready": False}
     if not check.get("discovery_ready"):
         result = {"status": "blocked_database_preflight", "mode": mode, "database": check}
@@ -173,10 +176,9 @@ def execute(selected):
     env.pop("GITHUB_STEP_SUMMARY", None)
     # Apply the same verified TLS settings to the write connection as to preflight.
     import certifi
-    from sqlalchemy.engine import make_url
 
     env["DATABASE_URL"] = (
-        make_url(settings.database_url)
+        live.postgres_session_url(settings.database_url)
         .update_query_dict({"sslmode": "verify-full", "sslrootcert": certifi.where()})
         .render_as_string(hide_password=False)
     )

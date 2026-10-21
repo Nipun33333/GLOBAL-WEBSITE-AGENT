@@ -601,3 +601,15 @@ def test_deferred_reply_keeps_checkpoint_and_stops_followups(session, settings, 
     assert not get_config(session, "reply_checkpoint")
     assert pipe.run.summary["capacity_deferred"] == 1
     assert fakes.gmail.sends == 0 and fakes.gmail.drafts == 0
+
+
+def test_run_report_exposes_capability_gates_without_provider_secrets(config):
+    selected = {"generation": False, "deployment": False, "drafts": False, "sending": False}
+    result = master.capability_readiness(selected, config)
+    assert all(result[name] == "disabled" for name in selected)
+    assert result["gemini_account_usage_review"] == "configured"
+    config.gemini.usage_authorizations = {}
+    result = master.capability_readiness(selected, config)
+    assert result["gemini_account_usage_review"] == "required"
+    assert all("key" not in field and "token" not in field for field in result)
+

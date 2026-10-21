@@ -207,6 +207,7 @@ def test_runtime_diagnostics_forces_flags_false(monkeypatch):
 def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     from website_agent import settings as settings_module
 
+    settings.database_url = "postgresql+psycopg://fixture:private@db.example:5432/postgres"
     monkeypatch.setattr(settings_module, "Settings", lambda **_: settings)
     from website_agent import live_verification as live
 
@@ -222,6 +223,26 @@ def test_one_click_database_errors_get_sanitized_report(monkeypatch, settings):
     assert result["status"] == "blocked_database_preflight"
     assert result["database"] == {"status": "connection_tls_or_configuration_unavailable", "discovery_ready": False}
     assert secret not in json.dumps(result)
+
+
+def test_one_click_missing_database_secret_is_reported_without_connection_attempt(
+    monkeypatch, settings
+):
+    from website_agent import settings as settings_module
+    from website_agent import live_verification as live
+
+    settings.database_url = ""
+    monkeypatch.setattr(settings_module, "Settings", lambda **_: settings)
+    attempt = Mock(side_effect=AssertionError("should not connect"))
+    monkeypatch.setattr(live, "database_check", attempt)
+    published = Mock()
+    monkeypatch.setattr(live, "publish", published)
+    selected = master.plan(
+        env(ONE_CLICK_MODE="true", GITHUB_REF="refs/heads/main"), SHA
+    )
+    assert master.execute(selected) == 2
+    attempt.assert_not_called()
+    assert published.call_args.args[0]["database"]["status"] == "missing_database_url"
 
 
 def test_runtime_db_block_prevents_cli(monkeypatch, settings, config):

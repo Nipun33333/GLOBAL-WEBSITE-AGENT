@@ -8,6 +8,7 @@ from website_agent.analysis import inspect_site, quote_in_evidence
 from website_agent.database import (
     Audit,
     BusinessSource,
+    Event,
     Followup,
     LocationQueue,
     Message,
@@ -214,7 +215,7 @@ class Pipeline:
             prospect.status = "audited"
             self.session.commit()
             self.log("inspected", prospect_id=prospect.id, score=audit.score)
-        if audit.score >= self.config.limits.threshold:
+        if self.config.weak_websites_only and audit.score >= self.config.limits.threshold:
             prospect.status = "disqualified"
             self.session.commit()
             self.log("strong_website_disqualified", prospect_id=prospect.id, score=audit.score)
@@ -367,6 +368,26 @@ class Pipeline:
             self.log("schedule_not_due")
             return
         self.database_capacity()
+        if not self.config.weak_websites_only:
+            # Revisit only exclusions our own audit logged for site quality.
+            # Never revive unsubscribed/rejected/imported prospects or unrelated
+            # model-disqualified businesses when the operator broadens targeting.
+            quality_excluded = select(Event.id).where(
+                Event.event == "strong_website_disqualified",
+                Event.details["prospect_id"].as_string() == Prospect.id,
+            ).exists()
+            for prospect in self.session.scalars(
+                select(Prospect).where(
+                    Prospect.country == country, self.niche_scope(),
+                    Prospect.status == "disqualified", Prospect.imported.is_(False),
+                    quality_excluded,
+                ).order_by(Prospect.created_at).limit(self.config.limits.inspected)
+            ).all():
+                audit = self.session.scalar(select(Audit).where(Audit.prospect_id == prospect.id))
+                if audit is not None and not audit.research:
+                    prospect.status = "audited"
+                    self.session.commit()
+                    self.log("quality_exclusion_reopened", prospect_id=prospect.id)
         # Existing drafts don't occupy the generation selection window.
         for prospect in self.session.scalars(
             select(Prospect).where(

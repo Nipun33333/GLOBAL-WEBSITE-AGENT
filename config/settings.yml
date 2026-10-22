@@ -54,6 +54,7 @@ gemini:
 
 niches:
   - salons
+weak_websites_only: false  # Owner requested all verified salons, regardless of existing site quality.
 # Strict production scope: Great Britain and Northern Ireland only (ISO 3166-1 alpha-2: GB).
 # These boxes are search envelopes, not city/country legal boundaries.
 operating_country: GB

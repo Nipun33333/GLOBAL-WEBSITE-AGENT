@@ -162,6 +162,7 @@ class Config(BaseModel):
     operating_country: Literal["GB"] = "GB"
     locations: list[Location] = Field(min_length=1)
     niches: list[str]
+    weak_websites_only: bool = True
 
     @model_validator(mode="after")
     def enforce_uk_only_locations(self):

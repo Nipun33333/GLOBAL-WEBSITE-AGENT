@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from website_agent.analysis import inspect_site
 from website_agent.compliance import eligible
-from website_agent.database import Message, suppress
+from website_agent.database import BusinessSource, Message, suppress
 from website_agent.outreach_authorization import authorization_readiness
 from website_agent.pipeline import Pipeline
 from website_agent.security import Blocked, Page
@@ -108,6 +108,43 @@ def test_out_of_scope_category_never_contacts(session, settings, config, prospec
     with pytest.raises(Blocked, match="business categories"):
         pipe.initial_outreach(prospect, site)
     assert fakes.gmail.sends == fakes.gmail.drafts == 0
+
+
+def test_dataset_category_from_salon_search_remains_in_scope(
+    session, settings, config, prospect, site, fakes, monkeypatch
+):
+    configure(settings, config, prospect)
+    prospect.niche = "beauty_salon"
+    prospect.status = "draft_ready"
+    session.add(BusinessSource(
+        prospect_id=prospect.id, provider="overture", provider_id="fixture",
+        evidence={"requested_niche": "salons", "category": "beauty_salon"},
+    ))
+    session.commit()
+    monkeypatch.setattr("website_agent.outreach.now", lambda: AT)
+    pipe = Pipeline(session, settings, config, gmail=fakes.gmail, verifier=Mock(return_value={}))
+    pipe.discover = Mock(side_effect=AssertionError("Saved draft must be selected first"))
+    pipe.start("daily", "legacy-salon-category")
+    pipe.daily()
+    assert fakes.gmail.sends == 1
+    pipe.discover.assert_not_called()
+
+
+def test_dataset_category_queued_salon_reaches_audit(session, settings, config, prospect, fakes):
+    configure(settings, config, prospect)
+    prospect.niche, prospect.status = "hair_salon", "discovered"
+    session.add(BusinessSource(
+        prospect_id=prospect.id, provider="overture", provider_id="queued-fixture",
+        evidence={"requested_niche": "salons", "category": "hair_salon"},
+    ))
+    session.commit()
+    pipe = Pipeline(session, settings, config, gmail=fakes.gmail)
+    pipe.discover = Mock(side_effect=AssertionError("Saved lead must be selected first"))
+    pipe.audit = Mock()
+    pipe.start("daily", "queued-salon-category")
+    pipe.daily()
+    pipe.audit.assert_called_once_with(prospect)
+    pipe.discover.assert_not_called()
 
 
 def test_contact_page_after_navigation_is_inspected_within_budget():

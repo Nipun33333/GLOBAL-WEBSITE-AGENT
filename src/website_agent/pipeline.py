@@ -1,7 +1,7 @@
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 
 from website_agent.ai import Design, Gemini, Research
 from website_agent.analysis import inspect_site, quote_in_evidence
@@ -313,10 +313,24 @@ class Pipeline:
         self.log("deployment_verified", site_id=site.id, url=site.url)
         return site
 
+    def niche_scope(self):
+        # Dataset categories differ from configured marketing niches. Existing
+        # rows retain their raw category; the verified source records the niche
+        # under which discovery admitted them.
+        return or_(
+            Prospect.niche.in_(self.config.niches),
+            select(BusinessSource.id).where(
+                BusinessSource.prospect_id == Prospect.id,
+                BusinessSource.evidence["requested_niche"].as_string().in_(self.config.niches),
+            ).exists(),
+        )
+
     def initial_outreach(self, prospect, site):
         if prospect.country != self.config.operating_country:
             raise Blocked("Out-of-market prospects cannot receive automated outreach")
-        if prospect.niche not in self.config.niches:
+        if not self.session.scalar(select(Prospect.id).where(
+            Prospect.id == prospect.id, self.niche_scope()
+        )):
             raise Blocked("Prospect is outside the configured business categories")
         if self.initial_sends_this_run >= 1:
             self.log("outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run")
@@ -357,7 +371,7 @@ class Pipeline:
         for prospect in self.session.scalars(
             select(Prospect).where(
                 Prospect.country == country, Prospect.status == "draft_ready",
-                Prospect.niche.in_(self.config.niches),
+                self.niche_scope(),
             ).order_by(Prospect.created_at).limit(self.config.limits.inspected)
         ).all():
             site = self.session.scalar(
@@ -379,7 +393,7 @@ class Pipeline:
             select(Prospect.id)
             .where(
                 Prospect.country == country,
-                Prospect.niche.in_(self.config.niches),
+                self.niche_scope(),
                 Prospect.status.in_(["discovered", "audited", "qualified"]),
             )
             .limit(1)
@@ -397,7 +411,7 @@ class Pipeline:
             select(Prospect)
             .where(
                 Prospect.country == country, Prospect.status.in_(["discovered", "audited"]),
-                Prospect.niche.in_(self.config.niches),
+                self.niche_scope(),
             )
             .order_by(Prospect.created_at)
             .limit(self.config.limits.inspected)
@@ -407,7 +421,7 @@ class Pipeline:
         query = (
             select(Prospect)
             .where(Prospect.country == country, Prospect.status == "qualified",
-                   Prospect.niche.in_(self.config.niches))
+                   self.niche_scope())
             .order_by(Prospect.created_at)
             .limit(self.config.limits.qualified)
         )

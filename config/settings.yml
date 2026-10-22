@@ -1,6 +1,6 @@
 # Global resource limits apply to UK-only business operations.
 limits:
-  discovered: 1
+  discovered: 3  # Fill the inspection batch when an earlier candidate is unsuitable.
   inspected: 3  # Check up to 3 candidates; produce at most one qualified demo.
   qualified: 1
   previews_daily: 2
@@ -54,17 +54,6 @@ gemini:
 
 niches:
   - salons
-  - spas
-  - gyms
-  - fitness studios
-  - dentists
-  - restaurants
-  - cafes
-  - retail stores
-  - barbershops
-  - clinics
-  - repair shops
-  - small professional services
 # Strict production scope: Great Britain and Northern Ireland only (ISO 3166-1 alpha-2: GB).
 # These boxes are search envelopes, not city/country legal boundaries.
 operating_country: GB

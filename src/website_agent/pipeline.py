@@ -25,6 +25,7 @@ from website_agent.generation import render, validate
 from website_agent.gmail import Gmail
 from website_agent.hosting import Netlify, verify_preview
 from website_agent.outreach import create_draft, followup_eligible, prepare, process_reply, send_controlled
+from website_agent.outreach_authorization import apply_recipient_evidence, load_authorization
 from website_agent.reporting import event
 from website_agent.scheduler import business_due, rotate
 from website_agent.security import Blocked, CapacityDeferred, PublicWeb, domain
@@ -51,6 +52,7 @@ class Pipeline:
         self.run = None
         self.discovery_outcome = None
         self.initial_sends_this_run = 0  # Strictly one new outreach message per workflow run.
+        self.outreach_authorization = load_authorization(settings)
 
     @property
     def ai(self):
@@ -314,9 +316,12 @@ class Pipeline:
     def initial_outreach(self, prospect, site):
         if prospect.country != self.config.operating_country:
             raise Blocked("Out-of-market prospects cannot receive automated outreach")
+        if prospect.niche not in self.config.niches:
+            raise Blocked("Prospect is outside the configured business categories")
         if self.initial_sends_this_run >= 1:
             self.log("outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run")
             return
+        apply_recipient_evidence(self.session, prospect, self.outreach_authorization)
         if not prospect.email or not prospect.contact_evidence.get("observed"):
             prospect.status = "no_contact"
             self.session.commit()
@@ -325,7 +330,7 @@ class Pipeline:
             )
             return
         self.settings.require("sender_name", "sender_email", "reply_to", "sender_postal_address")
-        message = prepare(self.session, prospect, site, self.settings, self.ai)
+        message = prepare(self.session, prospect, site, self.settings)
         old = message.state
         create_draft(self.session, self.gmail, self.settings, message)
         if message.state == "drafted":
@@ -337,6 +342,8 @@ class Pipeline:
             if send_controlled(self.session, self.gmail, self.settings, self.config, message, self.verify):
                 self.initial_sends_this_run += 1
                 self.log("email_sent", prospect_id=prospect.id, gmail_id=message.gmail_id)
+            elif message.details.get("blocked_reasons"):
+                self.log("outreach_blocked", reasons=message.details["blocked_reasons"])
 
     def daily(self, country=None, scheduled=False):
         if country and country != self.config.operating_country:
@@ -349,14 +356,17 @@ class Pipeline:
         # Existing drafts don't occupy the generation selection window.
         for prospect in self.session.scalars(
             select(Prospect).where(
-                Prospect.country == country, Prospect.status == "draft_ready"
-            ).order_by(Prospect.created_at).limit(1)
+                Prospect.country == country, Prospect.status == "draft_ready",
+                Prospect.niche.in_(self.config.niches),
+            ).order_by(Prospect.created_at).limit(self.config.limits.inspected)
         ).all():
             site = self.session.scalar(
                 select(Site).where(Site.prospect_id == prospect.id, Site.status == "verified")
             )
             if site:
                 self.step("outreach", lambda p=prospect, s=site: self.initial_outreach(p, s), prospect)
+            if self.initial_sends_this_run:
+                break
         if self.initial_sends_this_run:
             return  # Never contact two different businesses in one invocation.
         schedule_date = now().astimezone(ZoneInfo(self.config.schedule_timezone)).date().isoformat()
@@ -369,6 +379,7 @@ class Pipeline:
             select(Prospect.id)
             .where(
                 Prospect.country == country,
+                Prospect.niche.in_(self.config.niches),
                 Prospect.status.in_(["discovered", "audited", "qualified"]),
             )
             .limit(1)
@@ -385,7 +396,8 @@ class Pipeline:
         query = (
             select(Prospect)
             .where(
-                Prospect.country == country, Prospect.status.in_(["discovered", "audited"])
+                Prospect.country == country, Prospect.status.in_(["discovered", "audited"]),
+                Prospect.niche.in_(self.config.niches),
             )
             .order_by(Prospect.created_at)
             .limit(self.config.limits.inspected)
@@ -394,7 +406,8 @@ class Pipeline:
             self.step("audit", lambda p=prospect: self.audit(p), prospect)
         query = (
             select(Prospect)
-            .where(Prospect.country == country, Prospect.status == "qualified")
+            .where(Prospect.country == country, Prospect.status == "qualified",
+                   Prospect.niche.in_(self.config.niches))
             .order_by(Prospect.created_at)
             .limit(self.config.limits.qualified)
         )
@@ -488,7 +501,7 @@ class Pipeline:
         )
         if not site:
             return
-        ack = prepare(self.session, prospect, site, self.settings, self.ai, "acknowledgment")
+        ack = prepare(self.session, prospect, site, self.settings, kind="acknowledgment")
         create_draft(self.session, self.gmail, self.settings, ack)
         if self.settings.enable_routine_replies:
             send_controlled(self.session, self.gmail, self.settings, self.config, ack, self.verify)
@@ -508,7 +521,7 @@ class Pipeline:
                 )
                 if not site:
                     continue
-                message = prepare(self.session, prospect, site, self.settings, self.ai, "followup", sequence)
+                message = prepare(self.session, prospect, site, self.settings, kind="followup", sequence=sequence)
                 row = self.session.scalar(
                     select(Followup).where(Followup.prospect_id == prospect.id, Followup.sequence == sequence)
                 )

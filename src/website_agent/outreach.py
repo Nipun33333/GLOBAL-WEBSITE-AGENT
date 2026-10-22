@@ -5,7 +5,7 @@ from email.utils import parseaddr
 
 from sqlalchemy import select
 
-from website_agent.ai import EmailCopy, ReplyClassification
+from website_agent.ai import ReplyClassification
 from website_agent.compliance import eligible
 from website_agent.copy import trusted_copy
 from website_agent.database import GmailThread, Message, Prospect, Site, assert_lock, aware, now, suppress
@@ -46,7 +46,7 @@ def classify(text, ai):
     ).category
 
 
-def prepare(session, prospect, site, settings, ai, kind="initial", sequence=0):
+def prepare(session, prospect, site, settings, ai=None, kind="initial", sequence=0):
     existing = session.scalar(
         select(Message).where(
             Message.prospect_id == prospect.id, Message.kind == kind, Message.sequence == sequence
@@ -58,23 +58,10 @@ def prepare(session, prospect, site, settings, ai, kind="initial", sequence=0):
         raise Blocked("Outreach requires a verified preview")
     if not prospect.email or not prospect.contact_evidence.get("observed"):
         raise Blocked("No observed public business mailbox")
-    catalog_copy = trusted_copy(prospect.language, kind)
-    suggestion = ai.generate(
-        "Write a brief honest independent website-design offer in the requested language. "
-        "Subject, opening and invitation only. Do not include business claims, prices, guarantees, ratings, "
-        "URLs or sender details. Clearly say it is an unsolicited commercial design offer. "
-        "For a followup, politely refer to the earlier concept. For acknowledgment, only thank them and say the owner will review.",
-        {
-            "business": prospect.name,
-            "language": prospect.language,
-            "kind": kind,
-            "sequence": sequence,
-            "approved_catalog": catalog_copy.model_dump(),
-        },
-        EmailCopy,
-    )
-    # Model text cannot introduce unverified factual/financial promises into autonomous sends.
-    copy = suggestion if suggestion == catalog_copy else catalog_copy
+    # The send path has always required this catalog. A model call that can only
+    # reproduce it adds cost and can prevent delivery of an already verified demo.
+    # Retain the optional ai argument for compatibility; never initialize/use it.
+    copy = trusted_copy(prospect.language, kind)
     body = (
         f"{prospect.name}\n\n{copy.opening}\n\nIndependent, unofficial redesign concept: {site.url}\n\n{copy.invitation}\n\n"
         f"{settings.sender_name}\n{settings.sender_postal_address}\n"
@@ -95,8 +82,8 @@ def prepare(session, prospect, site, settings, ai, kind="initial", sequence=0):
         body=body,
         details={
             "copy_digest": hashlib.sha256((copy.subject + body).encode()).hexdigest(),
-            "gemini": getattr(ai, "last_provenance", {}),
-            "trusted_catalog_used": copy == catalog_copy,
+            "copy_source": "trusted_catalog",
+            "trusted_catalog_used": True,
         },
     )
     if kind != "initial":
@@ -116,9 +103,8 @@ def prepare(session, prospect, site, settings, ai, kind="initial", sequence=0):
     message.details = {
         **message.details,
         "catalog_digest": message.details["copy_digest"],
-        "catalog_version": 1,
+        "catalog_version": 2,
         "sender_fingerprint": sender_fingerprint(settings),
-        "ai_copy_matched_catalog": suggestion == catalog_copy,
     }
     session.add(message)
     session.commit()
@@ -189,15 +175,21 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
     if message.state != "drafted":
         return False
     prospect = session.get(Prospect, message.prospect_id)
+    # A configured private recipient list also constrains direct/reply callers.
+    from website_agent.outreach_authorization import apply_recipient_evidence, load_authorization
+
+    apply_recipient_evidence(session, prospect, load_authorization(settings))
     if message.recipient != prospect.email:
         raise Blocked("Draft recipient no longer matches verified prospect contact")
     if message.details.get("sender_fingerprint") != sender_fingerprint(settings):
         raise Blocked("Sender configuration changed since draft creation; regenerate the draft")
+    message.details = {**message.details, "outreach_policy_mode": settings.outreach_policy_mode}
     allowed, reasons = eligible(session, prospect, settings, at, routine=message.kind == "acknowledgment")
     if not allowed:
         message.details = {**message.details, "blocked_reasons": reasons}
         session.commit()
         return False
+    message.details = {key: value for key, value in message.details.items() if key != "blocked_reasons"}
     current_digest = hashlib.sha256((message.subject + message.body).encode()).hexdigest()
     if current_digest not in {message.details.get("approved_digest"), message.details.get("catalog_digest")}:
         raise Blocked("Outgoing copy changed outside the trusted catalog; explicit review required")

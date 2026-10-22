@@ -17,6 +17,7 @@ from website_agent.database import (
     now,
 )
 from website_agent.imports import import_eligibility, import_gmail_history, import_history, validate_history
+from website_agent.outreach_authorization import load_authorization
 from website_agent.pipeline import Pipeline
 from website_agent.reporting import report
 from website_agent.security import Blocked, CapacityDeferred
@@ -50,8 +51,10 @@ def migrate(engine):
             session.commit()
 
 
-def sync_policies(session, path):
+def sync_policies(session, path, authorization=None):
     policies = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if authorization is not None:
+        policies[authorization.country] = authorization.policy.model_dump()
     for country, value in policies.items():
         validated = Policy.model_validate(value).model_dump()
         row = session.scalar(select(CountryPolicy).where(CountryPolicy.country == country))
@@ -204,7 +207,7 @@ def run_cli():
             print("Wrote private/drafts.json (contains contact data; never commit).")
             return
         if args.command != "discover":
-            sync_policies(session, settings.policy_path)
+            sync_policies(session, settings.policy_path, load_authorization(settings))
         run_key = f"{args.command}:{os.getenv('GITHUB_RUN_ID', now().isoformat())}:{os.getenv('GITHUB_RUN_ATTEMPT', '1')}"
         if not pipeline.start(args.command, run_key):
             return

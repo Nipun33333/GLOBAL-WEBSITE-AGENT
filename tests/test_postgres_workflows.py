@@ -42,7 +42,11 @@ def test_required_workflows_and_safety():
     assert "workflow_dispatch" in data["on"]
     job = data["jobs"]["agent"]
     assert job["concurrency"]["cancel-in-progress"] == "false"
-    assert data["on"]["workflow_dispatch"]["inputs"]["request_sending"]["default"] == "false"
+    assert not data["on"]["workflow_dispatch"]
+    assert job["env"]["OUTREACH_POLICY_MODE"] == "operator_managed"
+    assert job["env"]["ENABLE_SENDING"] == "true"
+    assert "github.actor == github.repository_owner" in job["if"]
+    assert "github.ref == 'refs/heads/main'" in job["if"]
     for step in job["steps"]:
         if "uses" in step:
             assert len(step["uses"].split("@")[1]) == 40
@@ -50,5 +54,5 @@ def test_required_workflows_and_safety():
 
 def test_all_country_templates_disabled():
     data = yaml.safe_load(Path("config/country-policies.yml").read_text())
-    assert len(data) == 11
+    assert set(data) == {"GB"}
     assert all(not p["enabled"] for p in data.values())

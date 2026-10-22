@@ -1,16 +1,16 @@
-"""Auditable, factual-claim-free multilingual commercial copy for autonomous sends.
+"""Auditable multilingual demo offers with no email-generation API dependency.
 
-Gemini may propose alternatives, but only this catalog (or explicitly approved copy)
-can be sent. Business identity, source and verified preview are injected by code.
+Only this catalog (or explicitly approved copy) can be sent. Business identity,
+source and verified preview are injected by code.
 """
 
 from website_agent.ai import EmailCopy
 
 CATALOG = {
     "en": [
-        "An independent website concept",
-        "I prepared an independent, unofficial website redesign concept for your business.",
-        "Would you like to discuss a website redesign?",
+        "A website demo for your business",
+        "I have put together an independent, unofficial website demo for your business.",
+        "If you like the demo, would you be interested in discussing a paid website redesign?",
         "Following up on the independent website concept I shared.",
         "Thank you for your reply. I will pass it to the owner for review.",
     ],

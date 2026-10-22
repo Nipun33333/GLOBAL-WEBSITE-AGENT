@@ -35,7 +35,8 @@ jobs:
       ALLOW_GENERATION: 'true'
       ALLOW_DEPLOYMENT: 'true'
       ALLOW_DRAFTS: 'true'
-      ALLOW_SENDING: 'true'  # Recipient compliance checks remain mandatory.
+      ALLOW_SENDING: 'true'
+      OUTREACH_POLICY_MODE: 'operator_managed'  # Owner manages outreach obligations; no fabricated review records.
       ENABLE_SENDING: 'true'  # Sends only after verified site + country and Gmail deduplication checks.
       ENABLE_ROUTINE_REPLIES: 'false'
     steps:
@@ -84,6 +85,7 @@ jobs:
           REPLY_TO: ${{ secrets.REPLY_TO }}
           SENDER_POSTAL_ADDRESS: ${{ secrets.SENDER_POSTAL_ADDRESS }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          OUTREACH_AUTHORIZATION_JSON: ${{ secrets.OUTREACH_AUTHORIZATION_JSON }}
           DISCOVERY_API_KEY: ${{ secrets.DISCOVERY_API_KEY }}
         run: |
           # Optional project CA certificate, loaded from a one-time GitHub Secret.

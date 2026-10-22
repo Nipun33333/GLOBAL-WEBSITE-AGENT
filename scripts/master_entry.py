@@ -183,6 +183,20 @@ def capability_readiness(selected, config):
     return capabilities
 
 
+def safe_outreach_block_counts(events):
+    """Export only fixed reason codes and counts, never recipient/event payloads."""
+    from website_agent.compliance import SEND_BLOCK_REASONS
+
+    counts = {}
+    for event in events:
+        reasons = event.get("reasons") if isinstance(event, dict) else None
+        if not isinstance(reasons, list):
+            continue
+        for reason in set(r for r in reasons if isinstance(r, str) and r in SEND_BLOCK_REASONS):
+            counts[reason] = counts.get(reason, 0) + 1
+    return counts
+
+
 def eligible_deferred_success(code, mode, counts, run_diagnostics):
     """Only an independently persisted, stage-error-free retry can end cleanly."""
     discovery = run_diagnostics.get("discovery", {})
@@ -292,6 +306,9 @@ def execute(selected):
     try:
         settings = Settings(_env_file=None)
         config = settings.config()
+        from website_agent.outreach_authorization import authorization_readiness
+
+        outreach_readiness = authorization_readiness(settings)
     except Exception:
         live.publish({"status": "blocked_application_config", "mode": mode})
         return 2
@@ -393,6 +410,7 @@ def execute(selected):
                     "strong_website_disqualified", "discovery_skipped",
                     "website_generated", "deployment_verified", "email_drafted",
                     "email_sent", "outreach_deferred", "failure",
+                    "outreach_blocked",
                     "capacity_deferred", "location_deferred",
                 }
                 stage_rows = connection.execute(
@@ -403,6 +421,12 @@ def execute(selected):
                 run_diagnostics["stage_event_counts"] = {
                     name: int(count) for name, count in stage_rows if name in stage_names
                 }
+                blocked_events = connection.execute(
+                    select(Event.details).where(
+                        Event.run_id == exact_run.id, Event.event == "outreach_blocked"
+                    )
+                ).scalars()
+                run_diagnostics["outreach_block_reasons"] = safe_outreach_block_counts(blocked_events)
             # Recovery journals also record why a fully bounded run deferred.
             from website_agent.database import Configuration
 
@@ -486,6 +510,7 @@ def execute(selected):
             "revision": selected["revision"],
             "sending_enabled": selected["sending"],
             "capability_readiness": capability_readiness(selected, config),
+            "outreach_readiness": outreach_readiness,
             "schema_bootstrap": bootstrap_status or "not_needed",
             "run_diagnostics": run_diagnostics,
             "aggregate_counts": counts,

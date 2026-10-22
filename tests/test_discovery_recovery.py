@@ -593,7 +593,7 @@ def test_pending_page_continuation_preserved_across_sessions(session, settings, 
     assert len(session.scalars(select(Prospect)).all()) == 2
 
 
-def test_discovery_failure_does_not_stop_queued_pipeline_work(
+def test_queued_pipeline_work_does_not_depend_on_discovery_availability(
     session, settings, config, prospect, fakes, monkeypatch
 ):
     from website_agent.pipeline import Pipeline
@@ -604,14 +604,16 @@ def test_discovery_failure_does_not_stop_queued_pipeline_work(
         pipe.discovery_outcome = {"status": "deferred_provider_unavailable"}
         return False
 
-    monkeypatch.setattr(pipe, "discover", unavailable_discovery)
+    discover = Mock(side_effect=unavailable_discovery)
+    monkeypatch.setattr(pipe, "discover", discover)
     generate = Mock(return_value=None)
     monkeypatch.setattr(pipe, "generate", generate)
     pipe.start("daily", "discovery-outage-fixture")
     pipe.daily()
     pipe.finish()
     generate.assert_called_once_with(prospect)
-    assert pipe.run.status == "deferred_provider_unavailable"
+    discover.assert_not_called()
+    assert pipe.run.status == "completed"
     assert fakes.gmail.sends == 0
 
 

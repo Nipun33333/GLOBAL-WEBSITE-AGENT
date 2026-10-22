@@ -147,6 +147,8 @@ def test_send_idempotency_and_ambiguous_outcome(session, settings, config, prosp
 
 
 def test_actual_sent_verification_and_duplicate_prevention(session, settings, config, prospect, site, fakes):
+    config.limits.max_followups = 2  # Explicit fixture; production followups remain disabled.
+    config.limits.followups_daily = 2
     enable(session, settings, prospect)
     message = prepare(session, prospect, site, settings, fakes.ai)
     message.details = {**message.details, "approved_digest": message.details["copy_digest"]}
@@ -382,7 +384,7 @@ def test_uk_only_pipeline_skips_old_foreign_drafts_and_leads(
     with pytest.raises(Blocked, match="United Kingdom"):
         pipe.daily("US")
     with pytest.raises(Blocked, match="United Kingdom"):
-        pipe.discover("US")
+        Pipeline.discover(pipe, "US")
 
 
 def test_discovery_continues_when_no_business_backlog(

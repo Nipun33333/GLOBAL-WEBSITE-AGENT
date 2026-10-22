@@ -7,6 +7,16 @@ from website_agent.database import CountryPolicy, Suppression
 from website_agent.scheduler import contact_time
 from website_agent.security import domain, email_address
 
+SEND_BLOCK_REASONS = frozenset({
+    "sending_disabled", "missing_sender_name", "missing_sender_email", "missing_reply_to",
+    "missing_sender_postal_address", "missing_owner_email", "no_verified_business_email",
+    "contact_not_verified", "suppressed", "prospect_stopped", "reply_received",
+    "unverified_country_policy", "insufficient_legal_basis", "eligibility_expired",
+    "eligibility_expiry_required", "contact_type_not_permitted", "invalid_contact_hours",
+    "outside_local_contact_window",
+    "outside_operating_country", "not_public_business_mailbox",
+})
+
 
 class Policy(BaseModel):
     enabled: bool = False
@@ -45,6 +55,25 @@ def eligible(session, prospect, settings, at, *, routine=False):
         reasons.append("prospect_stopped")
     if prospect.replied_at and not routine:
         reasons.append("reply_received")
+    if settings.outreach_policy_mode == "operator_managed":
+        # The owner manages recipient/provider obligations outside this app.
+        # Do not manufacture consent, a legal basis, or reviewed evidence here.
+        from website_agent.analysis import ROLE_MAILBOXES
+
+        evidence = prospect.contact_evidence
+        if prospect.country != "GB":
+            reasons.append("outside_operating_country")
+        if (
+            address.split("@")[0] not in ROLE_MAILBOXES
+            or domain(address.split("@")[1]) != domain(prospect.domain)
+            or evidence.get("method") != "public_role_mailto"
+            or domain(evidence.get("url", "")) != domain(prospect.domain)
+            or evidence.get("email") != address
+        ):
+            reasons.append("not_public_business_mailbox")
+        if not contact_time(at, prospect.country, prospect.timezone, [9, 17], prospect.subdivision):
+            reasons.append("outside_local_contact_window")
+        return not reasons, reasons
     # Suppression records are durable; send_controlled performs a fresh Gmail
     # Sent + inbound scan per recipient immediately before any Gmail send.
     # Optional bulk history imports are never a precondition for this agent.

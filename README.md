@@ -68,7 +68,7 @@ All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sy
 | Followup sends per UTC day | 0 |
 | Followups per prospect | 0 |
 | Minimum time between outreach steps | 5 local business days |
-| Qualification score | below 55 / 100 |
+| Website quality filter | Disabled; all verified salons can qualify |
 | Gemini request attempts per UTC day | 12 |
 | Configured Gemini daily budget | USD 1.00 |
 

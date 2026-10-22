@@ -5,6 +5,11 @@ websites, uses Gemini for qualification and design, deploys a Netlify demo, veri
 it, then creates and sends a Gmail message with its link. It uses the existing
 personal Gmail OAuth connection. No recipient needs to be typed into a workflow form.
 Gemini does not invent addresses: email must be published on the business website.
+`weak_websites_only: false` targets every verified salon, including salons with
+strong existing websites. Audits still collect evidence, and Gemini must still
+verify that the content represents a real local business. Historical exclusions
+logged solely for website quality are reconsidered in bounded batches; opt-outs,
+rejections and unrelated disqualifications are not reset.
 
 ## Active sending mode
 

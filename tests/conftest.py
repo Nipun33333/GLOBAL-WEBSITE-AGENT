@@ -46,6 +46,7 @@ def config(settings):
     from website_agent.settings import ModelAuthorization
 
     cfg = settings.config()
+    cfg.weak_websites_only = True  # Historical quality-filter fixtures opt in explicitly.
     # Historical test fixtures intentionally use invented US/IN addresses.
     # Production settings and the actual GitHub Actions workflow remain GB-only.
     from website_agent.settings import Location

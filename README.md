@@ -10,7 +10,7 @@ A Python application for United Kingdom business discovery, evidence-based websi
 2. Follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for hosting, schedules, manual runs, and production activation.
 3. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [SECURITY.md](SECURITY.md), and [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 4. Read [docs/FINAL_READINESS.md](docs/FINAL_READINESS.md) for current evidence and one owner-action checklist; [docs/HANDOVER.md](docs/HANDOVER.md) retains the historical handover.
-5. Configure reviewed UK recipients using [docs/EMAIL_SENDING.md](docs/EMAIL_SENDING.md), then verify actual sends in the run summary.
+5. Read [docs/EMAIL_SENDING.md](docs/EMAIL_SENDING.md) for owner-managed automatic salon outreach and the optional reviewed-record mode, then verify actual sends in the run summary.
 
 ```bash
 python -m pip install uv==0.11.16
@@ -27,7 +27,7 @@ uv run website-agent doctor
 
 Use **Actions → UK Website Agent → Run workflow → Run workflow** on main. There are **no input boxes**: owner dispatch searches exclusively in the United Kingdom (GB) and starts one daily pipeline invocation. Twice-daily UTC schedules are `30 9 * * *` and `30 15 * * *` (3 PM / 9 PM IST). Automatic schedules are now enabled in code for both India-time slots, subject to GitHub Actions' scheduling delays and available provider capacity. See the [one-click control guide](docs/UNIFIED_WORKFLOW.md). No workflow automatically migrates the database.
 
-[Gemini fallback](docs/GEMINI_FALLBACK.md) selects owner-reviewed Free-Tier models 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite with bounded cooldowns and token checks. Quota review expires November 21, 2026; at most 12 AI requests/day and paid fallback remains disabled. **Both owner manual runs and the two daily schedules now enable Gemini generation, Netlify preview, Gmail draft preparation and the technical Gmail initial-sending switch.** At most one new email can be sent per invocation; automatic followups and replies stay disabled. **Recipient sends remain blocked** while all country policies are disabled or country-policy and per-contact eligibility evidence is missing; existing suppression and verification requirements are never bypassed. The green Actions result alone does not prove any website was deployed or a message sent.
+[Gemini fallback](docs/GEMINI_FALLBACK.md) selects owner-reviewed Free-Tier models with bounded cooldowns and token checks. Quota review expires November 21, 2026; at most 12 AI requests/day and paid fallback remains disabled. Owner manual runs and both schedules enable Gemini generation, Netlify preview, Gmail drafts and initial sending. The workflow uses `OUTREACH_POLICY_MODE=operator_managed`: the owner manages legal/provider obligations outside the application, without invented consent or legal-review records. Only observed same-domain public role mailboxes are eligible, with suppression, sender identity, fresh preview verification and Gmail history checks. At most one new email per run and two per day; automatic followups/replies stay disabled. A green Actions result alone does not prove deployment or sending.
 
 ## Zero-key discovery
 
@@ -43,7 +43,7 @@ flowchart LR
     D --> E[Netlify draft deployment]
     E --> F[HTTPS and Chromium checks]
     F --> G[Gmail draft]
-    G --> H{History, consent, policy, identity and budget gates}
+    G --> H{Mailbox, history, identity and budget checks}
     H -->|Authorized production mode| I[Verified Gmail send]
     I --> J[Replies and suppression]
     I --> K[Business-day followups]
@@ -52,7 +52,7 @@ flowchart LR
 
 The application includes all fourteen requested persistent tables, immutable migration SQL, global capacity controls, database locks, deterministic email identifiers, reply classification, imported history/suppressions, resumable hosting steps, bounded AI requests, and job-summary reporting.
 
-Production configuration ships with **10 UK cities** (England, Scotland, Wales and Northern Ireland), twelve business niches and **one country code: GB**. The old worldwide recovery queue and older non-UK leads remain in Supabase but are never selected for new UK-only audit, demo, drafts or sending. UK commercial-email rules still require independent review before recipient sending.
+Production configuration targets **10 UK cities**, **salons/parlors only**, and **one country code: GB**. Older non-UK or other-category leads remain in Supabase but are excluded from daily processing. Business candidates come from public discovery sources; Gemini qualifies observed website evidence and creates the design, never guesses recipient addresses. See the email guide for legal/provider limits; this configuration is not a compliance certification.
 
 All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sync --frozen`; `pyproject.toml` specifies update compatibility ranges, not the deployed resolution. Tests and development tools remain available locally; no separate testing workflow exists.
 
@@ -60,16 +60,16 @@ All package versions and distribution hashes are pinned by `uv.lock`. Use `uv sy
 
 | Setting | Default |
 |---|---:|
-| Businesses discovered per run | 30 |
-| Websites inspected per run | 10 |
-| Qualified businesses selected per run | 5 |
+| Businesses discovered per run | 3 |
+| Websites inspected per run | 3 |
+| Qualified businesses selected per run | 1 |
 | New previews per UTC day | 2 |
 | New outreach/acknowledgment sends per UTC day | 2 |
-| Followup sends per UTC day | 2 |
-| Followups per prospect | 2 |
+| Followup sends per UTC day | 0 |
+| Followups per prospect | 0 |
 | Minimum time between outreach steps | 5 local business days |
 | Qualification score | below 55 / 100 |
-| Gemini request attempts per UTC day | 30 |
+| Gemini request attempts per UTC day | 12 |
 | Configured Gemini daily budget | USD 1.00 |
 
 No universal free-tier claim is made. Provider contracts, Gmail/Actions limits, hosting retention, model access, and account-specific quotas require verification. There are no purchase, billing activation, or account-management actions in the application.

@@ -316,6 +316,8 @@ class Pipeline:
     def initial_outreach(self, prospect, site):
         if prospect.country != self.config.operating_country:
             raise Blocked("Out-of-market prospects cannot receive automated outreach")
+        if prospect.niche not in self.config.niches:
+            raise Blocked("Prospect is outside the configured business categories")
         if self.initial_sends_this_run >= 1:
             self.log("outreach_deferred", prospect_id=prospect.id, reason="one_initial_send_per_run")
             return
@@ -354,7 +356,8 @@ class Pipeline:
         # Existing drafts don't occupy the generation selection window.
         for prospect in self.session.scalars(
             select(Prospect).where(
-                Prospect.country == country, Prospect.status == "draft_ready"
+                Prospect.country == country, Prospect.status == "draft_ready",
+                Prospect.niche.in_(self.config.niches),
             ).order_by(Prospect.created_at).limit(self.config.limits.inspected)
         ).all():
             site = self.session.scalar(
@@ -376,6 +379,7 @@ class Pipeline:
             select(Prospect.id)
             .where(
                 Prospect.country == country,
+                Prospect.niche.in_(self.config.niches),
                 Prospect.status.in_(["discovered", "audited", "qualified"]),
             )
             .limit(1)
@@ -392,7 +396,8 @@ class Pipeline:
         query = (
             select(Prospect)
             .where(
-                Prospect.country == country, Prospect.status.in_(["discovered", "audited"])
+                Prospect.country == country, Prospect.status.in_(["discovered", "audited"]),
+                Prospect.niche.in_(self.config.niches),
             )
             .order_by(Prospect.created_at)
             .limit(self.config.limits.inspected)
@@ -401,7 +406,8 @@ class Pipeline:
             self.step("audit", lambda p=prospect: self.audit(p), prospect)
         query = (
             select(Prospect)
-            .where(Prospect.country == country, Prospect.status == "qualified")
+            .where(Prospect.country == country, Prospect.status == "qualified",
+                   Prospect.niche.in_(self.config.niches))
             .order_by(Prospect.created_at)
             .limit(self.config.limits.qualified)
         )

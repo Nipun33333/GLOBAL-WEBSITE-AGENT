@@ -1,122 +1,73 @@
-# Real UK business email sending
+# Automatic salon demo emails
 
-This repository uses your existing Gmail OAuth connection, including a personal
-Gmail mailbox. No paid email provider has been added. The API can create real drafts
-and send real messages, but a configured API connection is not permission to contact
-every discovered business.
+The UK workflow discovers salons/parlors from public business sources, audits their
+websites, uses Gemini for qualification and design, deploys a Netlify demo, verifies
+it, then creates and sends a Gmail message with its link. It uses the existing
+personal Gmail OAuth connection. No recipient needs to be typed into a workflow form.
+Gemini does not invent addresses: email must be published on the business website.
 
-Email preparation now uses the trusted demo-offer template directly. Gemini remains
-in use for research/design; a model outage no longer prevents preparing an email for
-an already verified demo. Existing drafts keep their original content and digest.
+## Active sending mode
 
-## What the setup can and cannot fix
+The owner-requested workflow sets `OUTREACH_POLICY_MODE=operator_managed`.
+This makes legal/provider review an operator responsibility outside the application;
+it does not create consent, a corporate-subscriber classification or a legal review.
+There is no required `OUTREACH_AUTHORIZATION_JSON` secret in this mode.
 
-`OUTREACH_AUTHORIZATION_JSON` is an **optional application configuration**, not a
-government certificate, a Gmail credential, or a guarantee of compliance. Existing
-policy-file/database imports remain supported. Do not invent consent, reviewer
-details or references just to make a send check pass.
+The following checks still run before sending:
 
-Under [ICO's UK B2B guidance](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/business-to-business-marketing/),
-corporate subscribers and sole traders have different rules; personal data also
-raises UK GDPR obligations. Separately, [Gmail's program policy](https://support.google.com/mail/answer/16734397)
-prohibits spam and unsolicited commercial mail. A corporate UK policy record does
-not override Gmail's provider terms. An unsolicited first-contact offer cannot be
-made provider-compliant simply by changing a flag or sending it manually.
+- GB business in the configured salon category and a qualifying website audit.
+- Public same-domain role mailbox (such as info/contact/bookings), observed in a
+  mailto link on the business website. Named/personal addresses are not guessed.
+- Verified HTTPS demo, freshly checked again immediately before sending.
+- Complete sender identity/address; OAuth mailbox must match From and Reply-To.
+- No suppression, stopped/imported prospect, prior reply or prior external Gmail contact.
+- UK business hours 09:00-17:00, excluding weekends and relevant public holidays.
+- Trusted offer copy, sender details and a reply-to-unsubscribe instruction.
+- One initial send per invocation, two per day, and no automatic followups/replies.
+- Durable Message-ID reconciliation: an ambiguous send is never blindly retried.
 
-This PR repairs preparation and reporting; it does not claim live, compliant cold
-outreach has been activated. Actual delivery and recipient permission have not been
-verified. The one-email-per-run limit is an operational cap, not a legal exemption.
+These are technical checks, not proof of permission. A public role address does not
+prove that a salon is a corporate subscriber. [ICO guidance](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/business-to-business-marketing/)
+distinguishes corporate subscribers from sole traders and some partnerships.
+[Gmail's policy](https://support.google.com/mail/answer/16734397) prohibits unsolicited
+commercial mail; this code setting does not override that policy or guarantee delivery.
 
-The daily workflow already uses the real Gmail API with sending enabled. Gmail
-credentials alone do not authorize a recipient. The checked-in GB policy is
-disabled, and discovered public addresses do not create recipient eligibility.
+## Optional reviewed-record mode
 
-## One-time private configuration
+For deployments that require review records enforced by software, set
+`OUTREACH_POLICY_MODE=reviewed`. This remains the default for standalone CLI use and
+`.env.example`. Configure real country-policy and per-recipient evidence using the
+existing policy/import commands, or the optional `OUTREACH_AUTHORIZATION_JSON` bundle.
+Never fill placeholder records merely to pass a check. The checked-in policy is
+disabled, so reviewed mode remains blocked until genuine records are supplied.
+A configured authorization bundle still restricts recipients in either mode; remove
+it when intentionally using only automatic observed-contact evidence.
 
-Use this optional route only when you already have real reviewed records. You do
-not need this secret to connect Gmail or prepare a demo draft.
+## Run and verify
 
-Keep the existing Gmail and sender secrets. Add `OUTREACH_AUTHORIZATION_JSON` in
-the repository's Actions secrets or the `agent-runtime` environment. The JSON
-contains your actual reviewed policy and individual recipient evidence. Never
-commit the populated JSON. Do not use placeholders as evidence.
+Use **Actions -> UK Website Agent -> Run workflow** on main. The same pipeline runs
+at 15:00 and 21:00 India time, subject to GitHub scheduling delays. Research and
+sending respect UK local windows; the evening slot can prepare a draft for the next
+open contact window. Candidates are researched in batches of three; at most one
+qualifying demo and one initial message are selected per invocation.
 
-```json
-{
-  "country": "GB",
-  "policy": {
-    "enabled": true,
-    "reviewed_by": "REPLACE_WITH_ACTUAL_REVIEWER",
-    "legal_reference": "REPLACE_WITH_ACTUAL_REVIEW_RECORD",
-    "valid_until": "2026-12-31",
-    "allowed_bases": ["REPLACE_WITH_REVIEWED_BASIS"],
-    "allowed_contact_types": ["corporate"],
-    "contact_hours": [9, 17]
-  },
-  "recipients": [
-    {
-      "domain": "business.example",
-      "verified_email": "contact@business.example",
-      "email_evidence_reference": "REPLACE_WITH_VERIFICATION_RECORD",
-      "basis": "REPLACE_WITH_REVIEWED_BASIS",
-      "evidence_reference": "REPLACE_WITH_RECIPIENT_REVIEW_RECORD",
-      "reviewed_by": "REPLACE_WITH_ACTUAL_REVIEWER",
-      "valid_until": "2026-12-31",
-      "contact_type": "corporate"
-    }
-  ]
-}
-```
+Email preparation uses a trusted template directly and no longer depends on Gemini.
+An unavailable model can still defer research/design, but cannot prevent preparing
+an email for an already verified demo. Contact pages are prioritized within the
+three-page fetch budget so navigation links do not hide the published mailbox.
 
-Choose real validity dates from the review. Configuration accepts at most 500
-distinct business domains and 48,000 UTF-8 bytes (within GitHub's secret budget).
-Malformed configuration stops the run with a generic error; private validation
-input is never logged. An absent secret preserves the existing policy-file and
-database-import setup. An empty recipient list permits no new sends through this
-private-configuration path.
+Inspect the run summary and `agent-result-<run>-1` artifact:
 
-The private policy replaces GB's checked-in policy during normal CLI policy sync.
-Only matching, already-discovered GB businesses can use the supplied evidence.
-The list does not import leads, assert that a business qualified, or skip preview
-generation. Evidence is checked again on every send attempt, including existing
-drafts. A changed draft recipient requires manual review; it is not silently
-retargeted. Removing a recipient from the configured list prevents new sends to
-that domain. Removing the entire secret restores the disabled checked-in policy
-on the next run. Existing audit/evidence records are retained in the database.
+- `outreach_readiness.source=operator_managed` identifies the active setting;
+  `legal_review_verified=false` explicitly avoids claiming a legal review.
+- `sending_enabled=true` is a switch, not evidence that any message was sent.
+- `run_diagnostics.stage_event_counts.email_sent` counts confirmed sends in that run.
+- `run_diagnostics.outreach_block_reasons` contains fixed reason codes without
+  publishing recipient details. Examples: `not_public_business_mailbox`,
+  `outside_local_contact_window`, `suppressed`.
+- `aggregate_counts.sent` is a rolling-day total and can include other runs.
 
-## Execution and verification
-
-After merging the code and configuring real evidence, the existing UK Website
-Agent schedule continues at 15:00 and 21:00 India time. Owner manual dispatch
-uses the same daily pipeline. Research and sending still respect UK local hours.
-
-A business must qualify, have a verified preview and mailbox, pass the current
-policy/expiry/contact-window checks, and have no prior external Gmail contact or
-opt-out. Trusted email copy, sender identity, send reconciliation and the maximum
-of one new initial email per run remain enforced. A blocked draft no longer
-prevents later drafts within the configured inspection batch from being checked.
-
-Inspect `agent-result-<run>-1` / the run summary:
-
-- `sending_enabled` indicates the switch, not successful delivery.
-- `outreach_readiness` identifies the policy source, policy switch and private
-  recipient count without exposing addresses or review records.
-- `run_diagnostics.stage_event_counts.outreach_blocked` counts policy-blocked
-  send attempts. `run_diagnostics.outreach_block_reasons` lists fixed reason codes
-  and counts for this run without recipient data. `unverified_country_policy`
-  means policy configuration is incomplete; `insufficient_legal_basis` means a
-  recipient record is missing/incompatible; `outside_local_contact_window`
-  means the recipient's configured local sending window is closed.
-- `run_diagnostics.stage_event_counts.email_sent` records sends in that run;
-  `aggregate_counts.sent` covers the last day and can include other runs.
-
-A Gmail `SENT` result confirms acceptance into the sender's Sent folder, not
-recipient inbox placement. Zero sends can also mean no qualified leads, a closed
-contact window, or a provider failure. Do not remove these checks to force a send.
-
-## Current observed baseline
-
-Run `39678398678` on 21 October 2026 had sending enabled, zero qualified leads,
-zero previews and zero messages; discovery deferred outside the local research
-window. Repository secret metadata contained Gmail/sender credentials but no
-private policy/recipient configuration. This is not a successful live send test.
+Gmail SENT verification confirms the sender's Sent-folder record, not inbox placement.
+Zero sends can mean no qualifying website, no observed email, a closed window,
+capacity exhaustion or a provider failure. See the actual run result before claiming
+live sending works. Unit tests use mocks and never send emails.

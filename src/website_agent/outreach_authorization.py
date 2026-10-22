@@ -103,6 +103,13 @@ def apply_recipient_evidence(session, prospect, authorization):
 
 def authorization_readiness(settings):
     authorization = load_authorization(settings)
+    if settings.outreach_policy_mode == "operator_managed":
+        return {
+            "source": "operator_managed",
+            "policy_enabled": True,
+            "legal_review_verified": False,
+            "authorization_secret": "configured" if authorization else "not_required",
+        }
     if authorization is None:
         policies = yaml.safe_load(Path(settings.policy_path).read_text(encoding="utf-8"))
         policy = Policy.model_validate(policies.get("GB", {}))

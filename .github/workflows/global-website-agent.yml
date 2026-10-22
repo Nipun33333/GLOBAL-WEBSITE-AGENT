@@ -35,7 +35,8 @@ jobs:
       ALLOW_GENERATION: 'true'
       ALLOW_DEPLOYMENT: 'true'
       ALLOW_DRAFTS: 'true'
-      ALLOW_SENDING: 'true'  # Recipient compliance checks remain mandatory.
+      ALLOW_SENDING: 'true'
+      OUTREACH_POLICY_MODE: 'operator_managed'  # Owner manages outreach obligations; no fabricated review records.
       ENABLE_SENDING: 'true'  # Sends only after verified site + country and Gmail deduplication checks.
       ENABLE_ROUTINE_REPLIES: 'false'
     steps:

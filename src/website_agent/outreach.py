@@ -183,6 +183,7 @@ def send_controlled(session, gmail, settings, config, message, verify, at=None):
         raise Blocked("Draft recipient no longer matches verified prospect contact")
     if message.details.get("sender_fingerprint") != sender_fingerprint(settings):
         raise Blocked("Sender configuration changed since draft creation; regenerate the draft")
+    message.details = {**message.details, "outreach_policy_mode": settings.outreach_policy_mode}
     allowed, reasons = eligible(session, prospect, settings, at, routine=message.kind == "acknowledgment")
     if not allowed:
         message.details = {**message.details, "blocked_reasons": reasons}

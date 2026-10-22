@@ -63,7 +63,10 @@ def inspect_site(web, url):
     broken = []
     tested = []
     contact_pages = [(page.url, soup)]
-    for link in dict.fromkeys(links):
+    # Contact pages often follow several navigation links; inspect them first
+    # within the same bounded three-page budget so published emails aren't missed.
+    ordered_links = sorted(dict.fromkeys(links), key=lambda u: "contact" not in u.lower())
+    for link in ordered_links:
         if len(tested) >= 3:
             break
         if not link.startswith(("https://", "http://")) or domain(link) != domain(page.url) or "#" in link:
@@ -75,6 +78,7 @@ def inspect_site(web, url):
                 broken.append(link)
             if (
                 other.status == 200
+                and domain(other.url) == domain(page.url)
                 and "contact" in link.lower()
                 and "text/html" in other.headers.get("content-type", "")
             ):

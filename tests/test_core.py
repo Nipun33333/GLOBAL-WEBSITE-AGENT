@@ -129,6 +129,7 @@ def test_business_days_and_dst():
 
 
 def test_rotation_fair_and_no_repeat(session, config):
+    config.niches = ["salons", "spas"]  # Exercise multiple categories independently of production targeting.
     config.research_hours = [0, 24]
     seen = []
     at = datetime(2026, 10, 20, 10, tzinfo=UTC)
@@ -144,7 +145,7 @@ def test_rotation_fair_and_no_repeat(session, config):
     assert len(set(seen)) == len(eligible_locations)
     row, loc = rotate(session, config, country="US", at=at)
     assert loc.country == "US"
-    assert len(session.scalars(select(LocationQueue)).all()) == len(eligible_locations) * 12
+    assert len(session.scalars(select(LocationQueue)).all()) == len(eligible_locations) * len(config.niches)
 
 
 def test_one_initial_send_per_run_guard_does_not_call_integrations(session, settings, config, prospect, site):
@@ -185,6 +186,7 @@ def test_owner_reviewed_free_gemini_models_are_bounded(settings):
 
 def test_production_market_is_united_kingdom_only(settings):
     from pathlib import Path
+
     import yaml
 
     data = yaml.safe_load(Path("config/settings.yml").read_text(encoding="utf-8"))
@@ -217,7 +219,8 @@ def test_single_opportunity_configuration_and_two_ist_slots():
     import yaml
 
     data = yaml.safe_load(Path("config/settings.yml").read_text(encoding="utf-8"))
-    assert data["limits"]["discovered"] == 1
+    assert data["limits"]["discovered"] == 3
+    assert data["niches"] == ["salons"]
     assert data["limits"]["inspected"] == 3
     assert data["limits"]["qualified"] == 1
     assert data["limits"]["max_followups"] == 0
